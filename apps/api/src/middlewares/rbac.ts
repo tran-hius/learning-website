@@ -1,35 +1,39 @@
-import { NextRequest, NextResponse } from "next/server";
-import { fail } from "../utils";
+import type { NextFunction, Request, Response } from "express";
+import { sendFail } from "../utils/response";
 
 export type Role = "STUDENT" | "TEACHER" | "ADMIN";
 
-type RouteContext = { params: Promise<Record<string, string>> };
+/** Authenticated requester attached by the auth middleware in a later task. */
+export interface AuthContext {
+  userId: string;
+  role: Role;
+}
 
-/**
- * Resolve the requester's role from the request auth context (JWT cookie).
- * Placeholder until auth lands in a later task; always AUTH_REQUIRED for now.
- */
-async function resolveRequesterRole(req: NextRequest): Promise<Role | null> {
-  // TODO: read at_v cookie + JWT claims in the auth task.
-  void req;
-  return null;
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      auth?: AuthContext;
+    }
+  }
 }
 
 /**
- * Higher-order function securing a route handler behind one of `roles`.
- * Usage: export const GET = requireRole(["ADMIN"])(async (req, ctx) => { ... });
+ * Express middleware guarding a route behind one of `roles`.
+ * Usage: router.get("/admin/x", requireRole(["ADMIN"]), handler)
  */
-export function requireRole(
-  roles: Role[],
-): (
-  handler: (req: NextRequest, ctx: RouteContext) => Promise<NextResponse>,
-) => (req: NextRequest, ctx: RouteContext) => Promise<NextResponse> {
-  return (handler) => async (req, ctx) => {
-    const role = await resolveRequesterRole(req);
-    if (!role) return fail("AUTH_REQUIRED", "Authentication required", 401);
-    if (!roles.includes(role)) {
-      return fail("FORBIDDEN", "Insufficient permissions", 403);
+export function requireRole(roles: Role[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    // TODO(auth task): populate req.auth from the JWT access token.
+    const auth = req.auth;
+    if (!auth) {
+      sendFail(res, "AUTH_REQUIRED", "Authentication required", 401);
+      return;
     }
-    return handler(req, ctx);
+    if (!roles.includes(auth.role)) {
+      sendFail(res, "FORBIDDEN", "Insufficient permissions", 403);
+      return;
+    }
+    next();
   };
 }

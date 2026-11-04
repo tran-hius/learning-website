@@ -1,51 +1,46 @@
-import { NextResponse } from "next/server";
+import type { ApiResponse, ApiErrorBody } from "../types";
 
-/** Standard error envelope per docs/api-contract.md. */
-export type ApiErrorBody = {
-  code: string;
-  message: string;
-  details?: unknown;
-};
-
-/** { success, data, error: { code, message } } — the shared response frame. */
-export type ApiResponse<T> = {
-  success: boolean;
-  data: T | null;
-  error: ApiErrorBody | null;
-};
-
-/** List wrapper with pagination, per contract section 1.4. */
-export type Pagination = {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-};
-
-export type Paginated<T> = {
-  items: T[];
-  pagination: Pagination;
-};
-
-export function ok<T>(data: T, status = 200): NextResponse<ApiResponse<T>> {
-  return NextResponse.json(
-    { success: true, data, error: null },
-    { status, headers: { "Cache-Control": "no-store" } },
-  );
+/** Build the standard success envelope (pure, unit-testable). */
+export function okBody<T>(data: T): ApiResponse<T> {
+  return { success: true, data, error: null };
 }
 
-export function fail(
+/** Build the standard error envelope (pure, unit-testable). */
+export function failBody(
+  code: string,
+  message: string,
+  details?: unknown,
+): ApiResponse<never> {
+  const error: ApiErrorBody = {
+    code,
+    message,
+    ...(details !== undefined ? { details } : {}),
+  };
+  return { success: false, data: null, error };
+}
+
+/** Send a success response through Express with no-store caching. */
+export function sendOk<T>(
+  res: import("express").Response,
+  data: T,
+  status = 200,
+): void {
+  res
+    .status(status)
+    .set("Cache-Control", "no-store")
+    .json(okBody(data));
+}
+
+/** Send a contract-shaped error response through Express. */
+export function sendFail(
+  res: import("express").Response,
   code: string,
   message: string,
   status = 500,
   details?: unknown,
-): NextResponse<ApiResponse<never>> {
-  return NextResponse.json(
-    {
-      success: false,
-      data: null,
-      error: { code, message, ...(details !== undefined ? { details } : {}) },
-    },
-    { status, headers: { "Cache-Control": "no-store" } },
-  );
+): void {
+  res
+    .status(status)
+    .set("Cache-Control", "no-store")
+    .json(failBody(code, message, details));
 }

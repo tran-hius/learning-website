@@ -1,1 +1,103 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens — docs/ui-design-guide.md
+ * Palette: kem nền, hồng đào, cam ấm, xanh ngọc non, xanh nhạt.
+ */
+@theme {
+  --color-cream: #fff9f2;
+  --color-cream-deep: #fff4e6;
+  --color-paper: #ffffff;
+
+  --color-coral-50: #fff0ef;
+  --color-coral-100: #ffe0dd;
+  --color-coral-200: #ffc4bf;
+  --color-coral-400: #ff8a80;
+  --color-coral-500: #ff7043;
+  --color-coral-600: #e85a33;
+
+  --color-honey-50: #fff6e3;
+  --color-honey-100: #ffeccd;
+  --color-honey-300: #ffd54f;
+  --color-honey-400: #ffb74d;
+  --color-honey-500: #f59b2d;
+
+  --color-teal-fresh-50: #e4f5f3;
+  --color-teal-fresh-100: #c9ebe8;
+  --color-teal-fresh-400: #4db6ac;
+  --color-teal-fresh-500: #26a69a;
+  --color-teal-fresh-600: #1d8a80;
+
+  --color-sky-soft-50: #eef5fd;
+  --color-sky-soft-100: #dbebf9;
+  --color-sky-soft-400: #90caf9;
+  --color-sky-soft-500: #64a9e8;
+  --color-sky-soft-600: #4b8fd0;
+
+  --color-lilac-soft-100: #ede3f8;
+  --color-lilac-soft-400: #c39ae0;
+
+  --color-ink-900: #3d3730;
+  --color-ink-700: #5c544a;
+  --color-ink-500: #7d746a;
+  --color-ink-300: #a89e93;
+
+  --color-mint-100: #d9f2ef;
+  --color-mint-400: #80cbc4;
+  --color-mint-600: #35a094;
+
+  --radius-card: 16px;
+  --radius-btn: 12px;
+  --radius-input: 10px;
+
+  --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lift: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  line-height: 1.65;
+}
+
+/* Focus ring rõ cho accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-teal-fresh-400);
+  outline-offset: 2px;
+}
+
+/* Micro-motion helpers */
+@keyframes pop-in {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 200ms ease-out both;
+}
+
+.animate-soft-float {
+  animation: soft-float 3.5s ease-in-out infinite;
+}

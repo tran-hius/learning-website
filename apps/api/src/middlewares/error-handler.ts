@@ -1,29 +1,34 @@
+import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../utils/errors";
-import { fail, logger } from "../utils";
-import { NextResponse } from "next/server";
+import { sendFail } from "../utils/response";
+import { logger } from "../utils/logger";
 
-type Handler<Args extends unknown[]> = (
-  ...args: Args
-) => Promise<NextResponse> | NextResponse;
+/**
+ * Express error middleware: AppError + ZodError -> contract envelope.
+ * Never leaks stack traces or internal messages to the client.
+ */
+export function errorHandler(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
+  if (err instanceof AppError) {
+    sendFail(res, err.code, err.message, err.status, err.details);
+    return;
+  }
 
-/** Wrap a route handler: AppError + ZodError -> contract envelope, swallows stack traces. */
-export function withErrorHandling<Args extends unknown[]>(
-  handler: Handler<Args>,
-): Handler<Args> {
-  return async (...args: Args) => {
-    try {
-      return await handler(...args);
-    } catch (err) {
-      if (err instanceof AppError) {
-        return fail(err.code, err.message, err.status, err.details);
-      }
-      if (err instanceof ZodError) {
-        return fail("VALIDATION_ERROR", "Request validation failed", 422, err.flatten());
-      }
-      logger.error({ err }, "Unhandled API error");
-      // Never expose internals/stack to the client.
-      return fail("INTERNAL", "Internal server error", 500);
-    }
-  };
+  if (err instanceof ZodError) {
+    sendFail(res, "VALIDATION_ERROR", "Request validation failed", 422, err.flatten());
+    return;
+  }
+
+  logger.error({ err }, "Unhandled API error");
+  sendFail(res, "INTERNAL", "Internal server error", 500);
+}
+
+/** 404 fallback for unknown routes. */
+export function notFoundHandler(_req: Request, res: Response): void {
+  sendFail(res, "NOT_FOUND", "Route not found", 404);
 }
