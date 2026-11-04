@@ -3,7 +3,7 @@
 - **Agent thực thi:** backend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/api/src/**`, `apps/api/prisma/**`, `apps/api/package.json`
 - **Task gốc từ kế hoạch:** Ngày 3 — Môn học & Bài học (S1–S4, L1–L2, C1–C12 trừ C12 upload để sau)
-- **Trạng thái:** DONE_PRIVATE (commit `ecb698c` — push 05/11/2026)
+- **Trạng thái:** DONE — final-reviewer: APPROVED_WITH_CONDITIONS (điều kiện + câu hỏi chuyển TASK-004: by-slug endpoint, map lỗi P2003, cacheDel C3, publish flag trước public)
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-002 (làm TRONG task này)
 1. `POST /auth/logout`: bỏ `requireAuth` (A6 🔓, quyết định D7) — best-effort: đọc `rt_v` nếu có → thu hồi, luôn clear `at_v`/`rt_v`. ✅ (auth.routes.ts + auth.controller.ts, try/catch best-effort)

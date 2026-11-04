@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/public/animations/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 3 — trang bài học thực thụ + hiệu ứng ăn điểm
-- **Trạng thái:** DONE_PRIVATE (commit `8ac329899fe00e11a11a3633cff633e3aa8b890f`, đã push origin/main)
+- **Trạng thái:** DONE — final-reviewer: APPROVED_WITH_CONDITIONS (điều kiện chuyển TASK-004-FR: demo XP text trung tính, gate percent≥70 chờ user chốt)
 
 ## Quyết định đã chốt áp dụng
 - **D8:** animation = `lottie-react` + file JSON free từ LottieFiles, lưu `apps/web/public/animations/` (mỗi file ≤150KB, lazy-load). Đọc mục 5 `docs/ui-design-guide.md` vừa cập nhật.
