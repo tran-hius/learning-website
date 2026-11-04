@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 6 — dashboard tiến độ, lộ trình, Pomodoro, chống gian lận thi
-- **Trạng thái:** DONE_PRIVATE (chờ reviewer — commit `c1130d49701969c0f94a7c63c4130ea47cb87ab7`)
+- **Trạng thái:** DONE — final-reviewer: APPROVED (F3/F6 nên làm TASK-007; đồng bộ shared types ở task sau) — commit `c1130d4`
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-005 (làm ĐẦU PHIÊN — KHÔNG có 🟠 code mới từ backend, FE không có điều kiện OC; nhưng hưởng D16)
 1. **D16-FE:** ExamRunner — khi GET questions trả `progress` → khôi phục grid + câu đã trả lời sau reload; submit giờ merge phía server, FE cứ gửi full state như cũ.

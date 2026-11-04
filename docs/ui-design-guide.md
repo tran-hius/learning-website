@@ -34,6 +34,10 @@
 - **Bóng:** chỉ dùng shadow mềm nhẹ (rgba(0,0,0,0.06), blur lớn) — không hard shadow.
 - **Whitespace thoải mái** (section padding 32–48px), khoảng cách các khối học cốt lõi 20–24px.
 - **Motion:** chuyển cảnh 150–250ms ease-out; micro-interaction khi đánh dấu hoàn thành (dấu check bounce nhỏ), progress bar đầy dần từ trái sang phải, icon streak bật nhẹ `pop`. KHÔNG animation trang trí vô nghĩa.
+- **Khoảnh khắc ăn điểm (Lottie — quyết định D8):** dùng `lottie-react` + file JSON free từ LottieFiles, lưu tại `apps/web/public/animations/`:
+  - **Điểm cao / hoàn thành bài:** overlay pháo hoa/konfetti + mascot nhảy mừng (2–3 giây, có nút "Đóng" + thông điệp động viên kèm điểm số: "Tuyệt vời! 9/10 🎉").
+  - **Điểm thấp:** KHÔNG pháo hoa — mascot buồn nhẹ nhàng + thông điệp "chê vui" đúng tone ("Trượt chút xíu, thử lại nhé! 💪") + nút "Làm lại" hoặc "Ôn lại mục nào".
+  - Nguyên tắc: Lottie chỉ dùng cho khoảnh khắc feedback quan trọng (kết quả bài/thi, streak mốc), KHÔNG lạm dụng nền trang; file JSON ≤ 150KB mỗi cái, lazy-load khi cần.
 
 ## 6. Checklist "chống nhìn như AI" — KẺM Ở REVIEW (reviewer UI kiểm)
 Các trang chính KHÔNG được có đặc điểm dưới đây:

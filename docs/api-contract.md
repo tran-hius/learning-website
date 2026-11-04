@@ -129,9 +129,9 @@ QuestionItem (câu hỏi trắc nghiệm) [practiceSet_id | examBank] {
 | # | Method | Path | Vai trò | Mô tả |
 |---|---|---|---|---|
 | E1 | POST | `/exams` | STUDENT | Bắt đầu thi: `{ examBankId, kind: "PRACTICE_TEST"\|"PLACEMENT_TEST", subjectSlug? }` (placement để không bắt buộc bank) → `{ session: { id, durationSec, totalQuestions, startedAt, expiresAt } }` — state lưu Redis key `exam:session:{id}` TTL = duration+60s |
-| E2 | GET | `/exams/:sessionId/questions` | STUDENT | Lấy đề (đã random, ẩn đáp án): `{ items: [{questionId, index, type, stem, options, media}] }` |
+| E2 | GET | `/exams/:sessionId/questions` | STUDENT | Lấy đề (đã random, ẩn đáp án): `{ items: [...], progress: [{questionId, value}] }` — **v1.1:** trả kèm progress đã autosave để FE khôi phục grid sau reload |
 | E3 | PATCH | `/exams/:sessionId/progress` | STUDENT | Lưu tạm câu trả lời `{ progress: [{questionId, value}] }` (autosave, kháng reload) |
-| E4 | POST | `/exams/:sessionId/submit` | STUDENT | `{ answers: [{questionId, value}] }` → chấm → `{ score, maxScore, percent, passed, timeSpentSec, perQuestion: [{questionId, isCorrect, yourAnswer, correctAnswer, explanation}], weakTopics: string[] }` (chỉ vào redis đã submit xóa session) |
+| E4 | POST | `/exams/:sessionId/submit` | STUDENT | `{ answers: [{questionId, value}], violations?: number }` → chấm → `{ score, maxScore, percent, passed, timeSpentSec, xpEarned, perQuestion: [...], weakTopics: string[] }` — **v1.1:** answers ghi đè (merge) lên autosave thay vì xóa sạch; `violations` = số lần vi phạm proctoring (lưu vào session để admin xem, không ảnh hưởng điểm ở MVP) |
 | E5 | GET | `/exams/history` | STUDENT | Lịch sử thi của user `{ items: [{sessionId, subjectName, kind, score, percent, passed, submittedAt, timeSpentSec}] }` |
 | E6 | GET | `/exams/:sessionId` | STUDENT | Chi tiết 1 lần thi đã nộp (kèm perQuestion) |
 
@@ -151,6 +151,7 @@ QuestionItem (câu hỏi trắc nghiệm) [practiceSet_id | examBank] {
 | G3 | GET | `/progress/timeline` | Biểu đồ theo ngày `?days=30`: `{ items: [{date, lessonsCompleted, examsTaken, xpEarned}] }` |
 | G4 | GET | `/progress/streak-calendar` | Kanban dạng contributions GitHub `?year=2026`: `{ days: [{date, count}] }` |
 | G5 | GET | `/progress/badges` | `{ earned: [{ id, name, icon, earnedAt }], upcoming: [{ id, name, condition }] }` |
+| G6 | POST | `/progress/pomodoro` | STUDENT | Ghi 1 chuỗi focus Pomodoro hoàn thành `{ minutes: number, completedAt }` → `{ xpEarned }`. Chuẩn 30 phút học / 5 phút nghỉ (D14); +5 XP/chuỗi focus ≥25 phút; server validate minutes ∈ [25..60], tối đa 8 chuỗi/ngày (chống spam XP) |
 
 **XP:** lesson hoàn thành +10, practice attempt đúng +2/câu,_exam,nộp đúng +5/câu, streak day +5 bonus. Cấp độ = `floor(xp / 100)`.
 
@@ -210,3 +211,23 @@ src/app/api/...           ← QUYỀN 70%(TF) — Route Handlers thin controller
 
 ---
 *✅ Bản v1.0 này là chân lý về API đa cấp. Mọi thay đổi phải qua manager cập nhật version.*
+
+## 12. QUYẾT ĐỊNH KỸ THUẬT ĐÃ ĐƯỢC NGƯỜI DÙNG CHỐT
+| # | Quyết định | Ngày | Ghi chú |
+|---|---|---|---|
+| D1 | FE = Next.js (apps/web), BE = Node.js + Express (apps/api), monorepo pnpm | 05/11/2026 | tách từ Next.js fullstack |
+| D2 | DB = MySQL (TiDB Cloud Serverless) | 05/11/2026 | |
+| D3 | Deploy = Vercel (web), API chạy riêng | 05/11/2026 | |
+| D4 | Chỉ trắc nghiệm; text + hình ảnh; audio chỉ tiếng Anh | 05/11/2026 | |
+| D5 | **Brand name = "SynapseBrain"** | 05/11/2026 | thay "HọcNè" tạm |
+| D6 | **Contract types đặt tại `packages/shared`, web + api cùng import** | 05/11/2026 | 1 nguồn sự thật |
+| D7 | **A6 logout = luôn hoạt động (🔓 best-effort)**; OAuth linking = link-by-email cho MVP (email verified), roadmap bảng `Account` sau | 05/11/2026 | final-reviewer khuyến nghị, user duyệt |
+| D8 | **Animation = lottie-react + file JSON từ LottieFiles (free)**, lưu `apps/web/public/animations/` | 05/11/2026 | pháo hoa/mascot mừng điểm cao, động viên khi điểm thấp |
+| D9 | Nút "Hoàn thành bài" bỏ gate điểm ≥70% (luôn hoạt động); celebration vẫn phân biệt ≥70/<70 | 05/11/2026 | |
+| D10 | Thêm `GET /lessons/by-slug/:slug` (S4 giữ nguyên) | 05/11/2026 | |
+| D11 | Subject publish flag: chấp nhận MVP trả tất cả môn; thêm status + migrate trước khi mở public | 05/11/2026 | |
+| D12 | S3/S4/L1/L2 giữ `requireAuth` (TEACHER/ADMIN xem được bài) | 05/11/2026 | |
+| D13 | MVP chạy demo mode làm đường chính; user tự cấu hình sau: TiDB (DATABASE_URL), Cloudinary, OAuth Google/GitHub, PISTON_URL (self-host Piston khi deploy). Code không cần đổi khi điền env | 05/11/2026 | |
+| D14 | **Pomodoro 30 phút học / 5 phút nghỉ**, XP +5/chuỗi focus ≥25 phút, endpoint G6 | 05/11/2026 | |
+| D15 | **Proctoring thi tiếng Anh:** vào fullscreen khi bắt đầu đề, chặn contextmenu + menu dịch; thoát fullscreen/chuyển tab → overlay cảnh báo + đếm vi phạm; đủ 3 lần → tự nộp bài. Vi phạm ghi vào submit (E4 `violations`), không trừ điểm MVP | 05/11/2026 | |
+| D16 | E2 trả `progress` khôi phục grid sau reload; E4 submit merge (ghi đè) autosave thay vì xóa sạch | 05/11/2026 | |
