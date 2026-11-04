@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import cookieParser from "cookie-parser";
 import { apiRouter } from "./routes";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 import { appEnv } from "./config";
@@ -19,6 +20,7 @@ export function createApp() {
     }),
   );
   app.use(express.json({ limit: "1mb" }));
+  app.use(cookieParser());
   app.use(pinoHttp({ logger }));
 
   app.use("/api/v1", apiRouter);

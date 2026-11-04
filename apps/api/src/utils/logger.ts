@@ -1,10 +1,10 @@
 import pino from "pino";
-import { isProduction } from "../config/app";
+import { isProdEnv } from "../config/app";
 
 export const logger = pino({
-  level: isProduction ? "info" : "debug",
+  level: isProdEnv ? "info" : "debug",
   // Pretty logs are a dev-only convenience.
-  transport: isProduction
+  transport: isProdEnv
     ? undefined
     : {
         target: "pino-pretty",

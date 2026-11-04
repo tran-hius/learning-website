@@ -43,6 +43,20 @@ model User {
   examSessions     ExamSession[]
   badges           UserBadge[]
   enrollments      RoadmapEnrollment[]
+  refreshTokens    RefreshToken[]
+}
+
+/// Lưu SHA-256 hash của refresh token để có thể thu hồi / xoay vòng.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ---------- CONTENT ----------
