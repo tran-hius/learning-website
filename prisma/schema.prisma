@@ -1,0 +1,297 @@
+// Prisma schema — Website Học Tập (MySQL)
+// Aligned with docs/api-contract.md v1.0
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- USER & AUTH ----------
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  name          String
+  role          UserRole   @default(STUDENT)
+  status        UserStatus @default(ACTIVE)
+  avatarUrl     String?
+  preferences   Json?
+  xp            Int        @default(0)
+  currentStreak Int        @default(0)
+  longestStreak Int        @default(0)
+  lastActiveAt  DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  lessonProgress   UserLessonProgress[]
+  examSessions     ExamSession[]
+  badges           UserBadge[]
+  enrollments      RoadmapEnrollment[]
+}
+
+// ---------- CONTENT ----------
+
+model Subject {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  icon        String?
+  color       String?
+  order       Int      @default(0)
+  description String?
+  chapters    Chapter[]
+}
+
+model Chapter {
+  id         String   @id @default(cuid())
+  subjectId  String
+  title      String
+  order      Int      @default(0)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  lessons    Lesson[]
+
+  @@index([subjectId, order])
+}
+
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Lesson {
+  id               String       @id @default(cuid())
+  chapterId        String
+  slug             String
+  title            String
+  content          String?
+  media            Json?
+  estimatedMinutes Int          @default(15)
+  thinkingSection  String?
+  order            Int          @default(0)
+  status           LessonStatus @default(DRAFT)
+  chapter          Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  practiceSets     PracticeSet[]
+  progress         UserLessonProgress[]
+
+  @@unique([chapterId, slug])
+  @@index([chapterId, order])
+}
+
+enum PracticeMode {
+  LISTENING
+  SPEAKING
+  READING
+  WRITING
+  CODING
+  QUIZ
+}
+
+model PracticeSet {
+  id        String       @id @default(cuid())
+  lessonId  String
+  mode      PracticeMode
+  payload   Json?
+  order     Int          @default(0)
+  lesson    Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions QuestionItem[]
+
+  @@index([lessonId, order])
+}
+
+enum QuestionType {
+  MCQ_SINGLE
+  MCQ_MULTI
+  FILL_ANSWER
+  MATCH_PAIRS
+  LISTEN_MCQ
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionSource {
+  PRACTICE
+  EXAM
+}
+
+model QuestionItem {
+  id            String         @id @default(cuid())
+  type          QuestionType
+  difficulty    Difficulty     @default(MEDIUM)
+  source        QuestionSource @default(PRACTICE)
+  practiceSetId String?
+  examBankId    String?
+  stem          String
+  media         Json?
+  options       Json?
+  answer        Json
+  explanation   String?
+  thinkingHints Json?
+  hintAnswerRef String?
+  practiceSet   PracticeSet?   @relation(fields: [practiceSetId], references: [id], onDelete: SetNull)
+  examBank      ExamBank?      @relation(fields: [examBankId], references: [id], onDelete: Cascade)
+  answers       ExamAnswer[]
+
+  @@index([practiceSetId])
+  @@index([examBankId])
+}
+
+// ---------- EXAMS ----------
+
+model ExamBank {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  durationSec Int           @default(1800)
+  questions   QuestionItem[]
+  sessions    ExamSession[]
+
+  @@index([slug])
+}
+
+enum ExamKind {
+  PRACTICE_TEST
+  PLACEMENT_TEST
+}
+
+enum ExamSessionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  CLOSED
+}
+
+model ExamSession {
+  id           String             @id @default(cuid())
+  userId       String
+  examBankId   String?
+  kind         ExamKind           @default(PRACTICE_TEST)
+  startedAt    DateTime           @default(now())
+  expiresAt    DateTime
+  submittedAt  DateTime?
+  status       ExamSessionStatus  @default(IN_PROGRESS)
+  progress     Json?
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examBank     ExamBank?          @relation(fields: [examBankId], references: [id])
+  answers      ExamAnswer[]
+  result       ExamResult?
+
+  @@index([userId, status])
+  @@index([examBankId])
+}
+
+model ExamAnswer {
+  id         String    @id @default(cuid())
+  sessionId  String
+  questionId String
+  value      Json
+  isCorrect  Boolean?
+  session    ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question   QuestionItem @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+}
+
+model ExamResult {
+  id           String    @id @default(cuid())
+  sessionId    String    @unique
+  score        Int
+  maxScore     Int
+  percent      Float
+  passed       Boolean
+  timeSpentSec Int      @default(0)
+  weakTopics   Json?
+  sessionIdRef ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+// ---------- ROADMAPS ----------
+
+model Roadmap {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String?
+  icon         String?
+  milestones   Milestone[]
+  enrollments  RoadmapEnrollment[]
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  roadmapId   String
+  title       String
+  order       Int       @default(0)
+  dependsOn   Json?     // array of milestone ids
+  lessons     Json?     // array of { lessonId, title }
+  examBankId  String?
+  roadmap     Roadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  @@index([roadmapId, order])
+}
+
+model RoadmapEnrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  roadmapId  String
+  startedAt  DateTime @default(now())
+  currentStep String?
+  status     Json?    // milestone statuses map
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmap    Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roadmapId])
+}
+
+// ---------- PROGRESS & GAMIFICATION ----------
+
+model UserLessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completedAt DateTime?
+  accuracy    Float?
+  lastViewedAt DateTime @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  icon        String?
+  condition   Json?       // rule definition for awarding
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+}
