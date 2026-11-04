@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
- * Design tokens — docs/ui-design-guide.md
- * Palette: kem nền, hồng đào, cam ấm, xanh ngọc non, xanh nhạt.
+ * Design tokens - docs/ui-design-guide.md
+ * Palette: nen kem, hong dao, cam am, xanh ngoc non, xanh nhat (bo dau tieng Viet trong comment)
  */
 @theme {
   --color-cream: #fff9f2;
@@ -63,7 +63,7 @@ body {
   line-height: 1.65;
 }
 
-/* Focus ring rõ cho accessibility */
+/* Focus ring ro cho accessibility */
 :focus-visible {
   outline: 2px solid var(--color-teal-fresh-400);
   outline-offset: 2px;
