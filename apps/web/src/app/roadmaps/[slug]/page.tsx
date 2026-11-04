@@ -68,7 +68,7 @@ export default function RoadmapDetailPage() {
     // TASK-007: nguồn chính là GET /roadmaps/me (backend liệt kê enrollment).
     try {
       const list = await getMyEnrollments();
-      const match = list.find((e) => e.roadmapId === roadmapId);
+      const match = list.items.find((e) => e.roadmapId === roadmapId);
       if (match) {
         const res = await getMyRoadmapProgress(match.id);
         setProgress(res);

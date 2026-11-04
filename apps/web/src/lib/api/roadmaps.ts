@@ -33,8 +33,9 @@ export function enrollRoadmap(roadmapId: string): Promise<{ enrollment: Enrollme
 /**
  * TASK-007 — enrollments của user (GET /roadmaps/me): thay localStorage làm
  * nguồn tìm enrollmentId khi vào R4. API lỗi → FE fallback localStorage (trung thực).
+ * F-R1 hotfix: BE trả `{ items: EnrollmentListItem[] }` (khớp pattern getRoadmaps).
  */
-export function getMyEnrollments(): Promise<EnrollmentListItem[]> {
+export function getMyEnrollments(): Promise<{ items: EnrollmentListItem[] }> {
   return apiFetch("/roadmaps/me");
 }
 
