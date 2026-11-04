@@ -10,6 +10,7 @@ import {
   EXAM_QUESTION_COUNT,
 } from "../utils/exam-timer";
 import { serializeQuestionForStudent } from "../utils/question-serializer";
+import { mergeExamAnswers } from "../utils/exam-merge";
 import type { QuestionRow } from "../repositories/content.repository";
 import { ExamRepository } from "../repositories/exam.repository";
 import { ProgressRepository } from "../repositories/progress.repository";
@@ -155,11 +156,14 @@ export class ExamService {
   async getSessionQuestions(userId: string, sessionId: string) {
     const session = await this.requireOwnedSession(userId, sessionId);
     const questions = await this.loadSessionQuestions(session);
+    // D16-1 (TASK-006): trả progress đã autosave (E3) để FE khôi phục grid sau reload.
+    const answers = await this.exams.listAnswers(sessionId);
     return {
       session: {
         id: session.id,
         remainingSec: remainingSeconds(session.expiresAt, new Date()),
       },
+      progress: answers.map((a) => ({ questionId: a.questionId, value: a.value })),
       items: questions.map((q, index) => ({
         questionId: q.id,
         index,
@@ -204,11 +208,12 @@ export class ExamService {
 
     const session = await this.requireOwnedSession(userId, sessionId);
     const questions = await this.loadSessionQuestions(session);
-    const byId = new Map(questions.map((q) => [q.id, q]));
 
-    // Ghi đáp án user submit (chỉ câu thuộc đề).
-    const submitted = input.answers.filter((a) => byId.has(a.questionId));
-    const submittedMap = new Map(submitted.map((a) => [a.questionId, a.value]));
+    // D16-2 (TASK-006): hợp nhất autosave (E3) ∪ submit — submit ưu tiên, autosave
+    // của câu không submit vẫn được chấm (thay vì xoá sạch như trước).
+    const autosave = await this.exams.listAnswers(sessionId);
+    const merged = mergeExamAnswers(autosave, input.answers, new Set(session.questionIds));
+    const mergedMap = new Map(merged.map((a) => [a.questionId, a.value as never]));
 
     const perQuestion: Array<{
       questionId: string;
@@ -222,7 +227,7 @@ export class ExamService {
 
     for (const q of questions) {
       const answer = (q.answer ?? {}) as never;
-      const value = submittedMap.get(q.id); // không trả lời → sai (không điểm trừ)
+      const value = mergedMap.get(q.id); // không trả lời → sai (không điểm trừ)
       const isCorrect =
         value !== undefined && isAnswerCorrect(q.type, answer, value as never);
       if (isCorrect) score++;
@@ -251,6 +256,9 @@ export class ExamService {
       passed: percent >= PASS_PERCENT,
       timeSpentSec,
       weakTopics: [...weakTopics],
+      // D15-BE: số vi phạm proctoring (0..99, đã validate ở schema) — lưu session,
+      // KHÔNG ảnh hưởng điểm MVP.
+      proctoringViolations: input.violations ?? 0,
       answers: perQuestion.map((p) => ({
         questionId: p.questionId,
         value: p.yourAnswer ?? "",
@@ -275,6 +283,7 @@ export class ExamService {
       xpEarned,
       perQuestion,
       weakTopics: [...weakTopics],
+      proctoringViolations: input.violations ?? 0,
       submittedAt: submittedAt.toISOString(),
     };
   }
@@ -318,6 +327,8 @@ export class ExamService {
       passed: result.passed,
       timeSpentSec: result.timeSpentSec,
       weakTopics: result.weakTopics,
+      // D15-BE (TASK-006): trả số vi phạm proctoring trong E6 (và E4 idempotent).
+      proctoringViolations: session.proctoringViolations ?? 0,
       perQuestion,
       submittedAt: session.submittedAt?.toISOString() ?? null,
       // accuracy = percent/100 — FE tái dùng ResultCelebration (D9/D8).

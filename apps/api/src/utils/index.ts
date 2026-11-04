@@ -17,6 +17,21 @@ export {
   pickQuestionIdsByDifficulty,
   EXAM_QUESTION_COUNT,
 } from "./exam-timer";
+export { mergeExamAnswers } from "./exam-merge";
+export { rateLimitWith } from "./cache";
+export { computeStreaks, utcDayKey, lastNDayKeys } from "./streak";
+export {
+  POMODORO_MIN_MINUTES,
+  POMODORO_MAX_MINUTES,
+  POMODORO_MAX_SESSIONS_PER_DAY,
+  POMODORO_XP_PER_SESSION,
+  resolveCompletedAt,
+  utcDayStart,
+} from "./pomodoro";
+export { computeMilestoneStatuses } from "./roadmap-logic";
+export type { MilestoneStatus, MilestoneNode } from "./roadmap-logic";
+export { BADGE_DEFS, isBadgeEarned, evaluateBadges, describeCondition } from "./badges";
+export type { BadgeDef, BadgeStats, BadgeCondition } from "./badges";
 export {
   signAccessToken,
   verifyAccessToken,

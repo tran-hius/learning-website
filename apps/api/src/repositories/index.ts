@@ -28,4 +28,11 @@ export type {
   ExamAnswerRow,
   ExamHistoryRow,
 } from "./exam.repository";
+export { RoadmapRepository } from "./roadmap.repository";
+export type {
+  IRoadmapRepository,
+  MilestoneRow,
+  RoadmapListItem,
+  EnrollmentRow,
+} from "./roadmap.repository";
 export type { IBaseRepository } from "./interfaces";

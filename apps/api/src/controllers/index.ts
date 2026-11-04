@@ -6,3 +6,5 @@ export { adminController } from "./admin.controller";
 export { practiceController } from "./practice.controller";
 export { englishController } from "./english.controller";
 export { examController } from "./exam.controller";
+export { progressController } from "./progress.controller";
+export { roadmapController } from "./roadmap.controller";

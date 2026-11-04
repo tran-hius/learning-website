@@ -6,3 +6,5 @@ export { ContentService, LESSON_COMPLETE_XP } from "./content.service";
 export type { LessonBrief } from "./content.service";
 export { AdminService } from "./admin.service";
 export { ExamService, EXAM_XP_PER_CORRECT } from "./exam.service";
+export { ProgressService } from "./progress.service";
+export { RoadmapService } from "./roadmap.service";

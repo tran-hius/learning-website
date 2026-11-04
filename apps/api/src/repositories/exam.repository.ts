@@ -17,6 +17,8 @@ export type ExamSessionRow = {
   submittedAt: Date | null;
   status: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "CLOSED";
   questionIds: string[];
+  /// D15-BE (TASK-006): số vi phạm proctoring client submit kèm E4 (null = chưa submit).
+  proctoringViolations: number | null;
 };
 
 export type ExamAnswerRow = {
@@ -74,6 +76,7 @@ export interface IExamRepository {
     passed: boolean;
     timeSpentSec: number;
     weakTopics: string[];
+    proctoringViolations: number;
     answers: Array<{ questionId: string; value: unknown; isCorrect: boolean }>;
   }): Promise<void>;
   findSubmittedSession(sessionId: string): Promise<
@@ -115,10 +118,13 @@ function toSessionRow(row: {
   submittedAt: Date | null;
   status: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "CLOSED";
   questionIds: unknown;
+  proctoringViolations: unknown;
 }): ExamSessionRow {
   return {
     ...row,
     questionIds: Array.isArray(row.questionIds) ? (row.questionIds as string[]) : [],
+    proctoringViolations:
+      typeof row.proctoringViolations === "number" ? row.proctoringViolations : null,
   };
 }
 
@@ -132,6 +138,7 @@ const sessionSelect = {
   submittedAt: true,
   status: true,
   questionIds: true,
+  proctoringViolations: true,
 } satisfies Prisma.ExamSessionSelect;
 
 export class ExamRepository implements IExamRepository {
@@ -250,19 +257,27 @@ export class ExamRepository implements IExamRepository {
     passed: boolean;
     timeSpentSec: number;
     weakTopics: string[];
+    proctoringViolations: number;
     answers: Array<{ questionId: string; value: unknown; isCorrect: boolean }>;
   }): Promise<void> {
     await db.$transaction([
-      // Xoá answers tạm rồi ghi lại full (giá trị cuối cùng user submit).
-      db.examAnswer.deleteMany({ where: { sessionId: data.sessionId } }),
-      db.examAnswer.createMany({
-        data: data.answers.map((a) => ({
-          sessionId: data.sessionId,
-          questionId: a.questionId,
-          value: a.value as Prisma.InputJsonValue,
-          isCorrect: a.isCorrect,
-        })),
-      }),
+      // D16-2 (TASK-006): UPSERT đáp án (autosave ∪ submit, submit ưu tiên đã merge ở
+      // service) thay vì deleteMany + createMany — autosave không bị xoá sạch.
+      ...data.answers.map((a) =>
+        db.examAnswer.upsert({
+          where: { sessionId_questionId: { sessionId: data.sessionId, questionId: a.questionId } },
+          update: {
+            value: a.value as Prisma.InputJsonValue,
+            isCorrect: a.isCorrect,
+          },
+          create: {
+            sessionId: data.sessionId,
+            questionId: a.questionId,
+            value: a.value as Prisma.InputJsonValue,
+            isCorrect: a.isCorrect,
+          },
+        }),
+      ),
       db.examResult.upsert({
         where: { sessionId: data.sessionId },
         update: {
@@ -283,9 +298,14 @@ export class ExamRepository implements IExamRepository {
           weakTopics: data.weakTopics as unknown as Prisma.InputJsonValue,
         },
       }),
+      // D15-BE: lưu số vi phạm proctoring vào session (E6 trả lại, không ảnh hưởng điểm).
       db.examSession.update({
         where: { id: data.sessionId },
-        data: { status: "SUBMITTED", submittedAt: new Date() },
+        data: {
+          status: "SUBMITTED",
+          submittedAt: new Date(),
+          proctoringViolations: data.proctoringViolations,
+        },
         select: { id: true },
       }),
     ]);

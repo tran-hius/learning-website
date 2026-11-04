@@ -98,6 +98,21 @@ export interface IContentRepository {
   findQuestionById(id: string): Promise<QuestionRow | null>;
   findExamBankById(id: string): Promise<{ id: string; name: string } | null>;
   questionExists(id: string): Promise<boolean>;
+  /** TASK-006 (G1): tree subject → chapters → lessons (mọi status, service tự lọc PUBLISHED). */
+  listSubjectTree(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      chapters: Array<{
+        id: string;
+        title: string;
+        order: number;
+        lessons: Array<{ id: string; title: string; status: "DRAFT" | "PUBLISHED" }>;
+      }>;
+    }>
+  >;
+  /** TASK-006 (G2): lesson theo danh sách id (title cho recommendedLesson). */
+  findLessonsByIds(ids: string[]): Promise<Array<{ id: string; title: string }>>;
 }
 
 const subjectSelect = {
@@ -387,6 +402,35 @@ export class ContentRepository implements IContentRepository {
   async questionExists(id: string): Promise<boolean> {
     const row = await db.questionItem.findUnique({ where: { id }, select: { id: true } });
     return row !== null;
+  }
+
+  // ── TASK-006 (G1/G2 helpers) ─────────────────────────────────────────
+
+  async listSubjectTree() {
+    return db.subject.findMany({
+      select: {
+        id: true,
+        name: true,
+        chapters: {
+          select: {
+            id: true,
+            title: true,
+            order: true,
+            lessons: { select: { id: true, title: true, status: true } },
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+      orderBy: { order: "asc" },
+    });
+  }
+
+  async findLessonsByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    return db.lesson.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, title: true },
+    });
   }
 
   // ── Up-next helpers (L2) ─────────────────────────────────────────────

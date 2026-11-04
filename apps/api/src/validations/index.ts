@@ -77,3 +77,18 @@ export type {
   ExamProgressInput,
   ExamSubmitInput,
 } from "./exam.schema";
+export {
+  pomodoroSchema,
+  timelineQuerySchema,
+  streakCalendarQuerySchema,
+  roadmapSlugParamSchema,
+  roadmapIdParamSchema,
+  enrollmentIdParamSchema,
+  placementTestSchema,
+} from "./progress.schema";
+export type {
+  PomodoroInput,
+  TimelineQuery,
+  StreakCalendarQuery,
+  PlacementTestInput,
+} from "./progress.schema";

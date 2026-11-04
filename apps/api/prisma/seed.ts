@@ -410,8 +410,99 @@ async function main() {
     });
   }
 
+  // ── TASK-006: 3 lộ trình mẫu (R1/R2 🔓) + badges (G5) ──────────────────
+  const roadmapData = [
+    {
+      slug: "backend",
+      title: "Backend Developer",
+      description: "Node.js, API, database và deploy ứng dụng backend.",
+      icon: "server",
+      milestones: [
+        { title: "Nền tảng JavaScript & Node.js", dependsOn: [] as string[], lessons: [], examBankId: null },
+        { title: "REST API với Express", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Database & ORM (Prisma)", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Auth & Bảo mật", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Deploy & DevOps cơ bản", dependsOn: [], lessons: [], examBankId: null },
+      ],
+    },
+    {
+      slug: "frontend",
+      title: "Frontend Developer",
+      description: "HTML/CSS, JavaScript, React và Next.js.",
+      icon: "layout",
+      milestones: [
+        { title: "HTML & CSS cơ bản", dependsOn: [] as string[], lessons: [], examBankId: null },
+        { title: "JavaScript hiện đại", dependsOn: [], lessons: [], examBankId: null },
+        { title: "React components & hooks", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Next.js & routing", dependsOn: [], lessons: [], examBankId: null },
+      ],
+    },
+    {
+      slug: "data-scientist",
+      title: "Data Scientist",
+      description: "Python, thống kê, machine learning và trực quan hoá dữ liệu.",
+      icon: "chart",
+      milestones: [
+        { title: "Python cơ bản", dependsOn: [] as string[], lessons: [], examBankId: null },
+        { title: "NumPy & Pandas", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Thống kê ứng dụng", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Machine Learning nhập môn", dependsOn: [], lessons: [], examBankId: null },
+      ],
+    },
+  ] as const;
+
+  for (const rm of roadmapData) {
+    const roadmap = await db.roadmap.upsert({
+      where: { slug: rm.slug },
+      update: { title: rm.title, description: rm.description, icon: rm.icon },
+      create: { slug: rm.slug, title: rm.title, description: rm.description, icon: rm.icon },
+    });
+    const existingMilestones = await db.milestone.findMany({
+      where: { roadmapId: roadmap.id },
+      orderBy: { order: "asc" },
+    });
+    // Tạo milestone thiếu (idempotent) rồi nối dependsOn theo chuỗi tuyến tính.
+    const created: string[] = existingMilestones.map((m) => m.id);
+    for (let i = created.length; i < rm.milestones.length; i++) {
+      const m = rm.milestones[i]!;
+      const row = await db.milestone.create({
+        data: {
+          roadmapId: roadmap.id,
+          title: m.title,
+          order: i + 1,
+          lessons: [] as unknown as object,
+        },
+        select: { id: true },
+      });
+      created.push(row.id);
+    }
+    for (let i = 0; i < created.length; i++) {
+      const dependsOn = i === 0 ? [] : [created[i - 1]];
+      await db.milestone.update({
+        where: { id: created[i] },
+        data: { dependsOn: dependsOn as unknown as object },
+      });
+    }
+  }
+
+  // Badges (G5): schema có bảng Badge — seed để UserBadge lazy-award có FK hợp lệ.
+  const badgeDefs = [
+    { name: "Bước đầu tiên", icon: "🌱", description: "Hoàn thành bài học đầu tiên" },
+    { name: "Học bền bỉ", icon: "🔥", description: "Streak 3 ngày liên tục" },
+    { name: "Tuần vàng", icon: "🏅", description: "Streak 7 ngày liên tục" },
+    { name: "Tri thức tập sự", icon: "⭐", description: "Đạt 200 XP" },
+    { name: "Chiến binh phòng thi", icon: "📝", description: "Hoàn thành 5 bài thi" },
+  ];
+  for (const b of badgeDefs) {
+    await db.badge.upsert({
+      where: { name: b.name },
+      update: { icon: b.icon, description: b.description },
+      create: b,
+    });
+  }
+
   console.log(
-    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=${await db.practiceSet.count()}, questions=${await db.questionItem.count()}, examBanks=${await db.examBank.count()}, examQuestions=${await db.questionItem.count({ where: { source: "EXAM" } })}`,
+    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=${await db.practiceSet.count()}, questions=${await db.questionItem.count()}, examBanks=${await db.examBank.count()}, examQuestions=${await db.questionItem.count({ where: { source: "EXAM" } })}, roadmaps=${await db.roadmap.count()}, milestones=${await db.milestone.count()}, badges=${await db.badge.count()}`,
   );
 }
 

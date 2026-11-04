@@ -16,7 +16,7 @@ type PipelineLike = {
 
 type RedisLike = {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string, mode: "EX", ttl: number): Promise<unknown>;
+  set(key: string, value: string, mode: "EX", ttl: number, nx?: "NX"): Promise<unknown>;
   del(key: string): Promise<unknown>;
   pipeline(): PipelineLike;
   quit(): Promise<unknown>;
@@ -95,14 +95,39 @@ export async function cacheDel(key: string): Promise<void> {
 }
 
 /**
- * Rate limit best-effort bằng Redis — ATOMIC (BE-1, TASK-005):
- * - Dùng pipeline MULTI (INCR + EXPIRE trong 1 lượt) → key KHÔNG BAO GIỜ tồn tại
- *   không TTL, kể cả khi process crash giữa chừng (EXPIRE luôn được gửi cùng lượt).
- * - EXPIRE được gửi mỗi lần gọi (idempotent) → cửa sổ luôn có TTL đúng ngay cả khi
- *   lần INCR đầu tiên đã xảy ra trước khi client disconnect.
+ * Rate limit best-effort bằng Redis — FIXED WINDOW thật (OC-1, TASK-006):
+ * - `SET key 1 EX window NX` trước: chỉ khi key CHƯA tồn tại (count = 1) mới đặt TTL.
+ * - NX thất bại (key đã có) → chỉ INCR, KHÔNG EXPIRE lại → TTL của cửa sổ không bị
+ *   kéo dài ⇒ cửa sổ đóng đúng giờ, không khóa vĩnh viễn (đây là fixed-window thật,
+ *   khác bản cũ EXPIRE mỗi lần làm cửa sổ trượt vô hạn).
  * - Redis chết / không có: trả `{ allowed: true, remaining: null }`, warn MỘT lần
  *   (flag `rateLimitWarned`) rồi im lặng — không warn mỗi request.
+ *
+ * Logic lõi tách thành `rateLimitWith(clientLike, ...)` — pure theo client interface
+ * để unit test giả lập gọi cách quãng (test/rate-limit.test.ts).
  */
+export type RateLimitClientLike = Pick<RedisLike, "set" | "pipeline">;
+
+export async function rateLimitWith(
+  c: RateLimitClientLike,
+  key: string,
+  limit: number,
+  windowSec: number,
+): Promise<{ allowed: boolean; remaining: number | null }> {
+  const setRes = await c.set(key, "1", "EX", windowSec, "NX");
+  if (setRes === "OK" || setRes === 1) {
+    // Lần đầu trong cửa sổ — TTL đã đặt atomic cùng lúc với count=1.
+    return { allowed: limit >= 1, remaining: Math.max(0, limit - 1) };
+  }
+  // Key đã tồn tại trong cửa sổ → chỉ tăng count, giữ nguyên TTL (fixed window).
+  const pipe = c.pipeline();
+  pipe.incr(key);
+  const results = await pipe.exec();
+  const count = typeof results?.[0]?.[1] === "number" ? (results[0][1] as number) : 1;
+  const remaining = Math.max(0, limit - count);
+  return { allowed: count <= limit, remaining };
+}
+
 export async function hitRateLimit(
   key: string,
   limit: number,
@@ -111,14 +136,9 @@ export async function hitRateLimit(
   try {
     const c = await getClient();
     if (!c) return { allowed: true, remaining: null };
-    const pipe = c.pipeline();
-    pipe.incr(key);
-    pipe.expire(key, windowSec);
-    const results = await pipe.exec();
-    const count = typeof results?.[0]?.[1] === "number" ? (results[0][1] as number) : 1;
+    const result = await rateLimitWith(c, key, limit, windowSec);
     rateLimitWarned = false; // Redis sống lại → cho phép warn lần tiếp nếu chết lần nữa
-    const remaining = Math.max(0, limit - count);
-    return { allowed: count <= limit, remaining };
+    return result;
   } catch (err) {
     if (!rateLimitWarned) {
       logger.warn({ err }, "Rate limit check failed — allowing request (best-effort)");

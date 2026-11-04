@@ -29,9 +29,10 @@ export const examProgressSchema = z.object({
   progress: z.array(attemptAnswerSchema).max(200),
 });
 
-/** E4: POST /exams/:sessionId/submit. */
+/** E4: POST /exams/:sessionId/submit — D15-BE: violations 0..99 (proctoring, không ảnh hưởng điểm). */
 export const examSubmitSchema = z.object({
   answers: z.array(attemptAnswerSchema).max(200),
+  violations: z.number().int().min(0).max(99).optional(),
 });
 
 export type StartExamInput = z.infer<typeof startExamSchema>;

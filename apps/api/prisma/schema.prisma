@@ -45,6 +45,7 @@ model User {
   enrollments      RoadmapEnrollment[]
   refreshTokens    RefreshToken[]
   speakingAttempts SpeakingAttempt[]
+  pomodoroSessions PomodoroSession[]
 }
 
 /// TASK-004 (S_E1): bản ghi lượt nói của user — MVP chỉ lưu audio +
@@ -220,6 +221,9 @@ model ExamSession {
   submittedAt  DateTime?
   status       ExamSessionStatus  @default(IN_PROGRESS)
   progress     Json?
+  /// TASK-006 (D15-BE): số lần vi phạm proctoring (0..99) do client submit kèm E4.
+  /// Không ảnh hưởng điểm MVP — chỉ lưu để admin/E6 xem lại.
+  proctoringViolations Int?
   /// TASK-005: đề đã random cho session này (thứ tự theo index) — nguồn chân lý khi
   /// Redis vắng mặt (mirror Redis chỉ là tối ưu, D13).
   questionIds  Json?
@@ -327,4 +331,16 @@ model UserBadge {
   badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, badgeId])
+}
+
+/// TASK-006 (D14): 1 chuỗi focus Pomodoro hoàn thành (30/5 — học 30 phút nghỉ 5 phút).
+/// XP +5/chuỗi, tối đa 8 chuỗi/ngày (chống spam XP) — đếm theo ngày UTC của completedAt.
+model PomodoroSession {
+  id          String   @id @default(cuid())
+  userId      String
+  minutes     Int
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
 }
