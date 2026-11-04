@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeMilestoneStatuses } from "../../src/utils/roadmap-logic";
+import { computeMilestoneStatuses, resolveMilestoneDoneIds } from "../../src/utils/roadmap-logic";
 
 /**
  * TASK-006 (R4): milestone mở theo dependencies — AVAILABLE khi mọi dependsOn DONE.
@@ -46,5 +46,64 @@ describe("computeMilestoneStatuses (R4)", () => {
   it("dependency trỏ id lạ (không tồn tại) → bỏ qua, vẫn mở", () => {
     const status = computeMilestoneStatuses([ms("m1", ["ghost"])], new Set());
     expect(status.get("m1")).toBe("AVAILABLE");
+  });
+});
+
+/**
+ * F1 hotfix (review db3f181): milestone RỖNG chỉ DONE khi AVAILABLE (deps DONE),
+ * không tự DONE — nếu không seed toàn milestone rỗng sẽ R4 100% DONE ngay khi enroll.
+ */
+describe("resolveMilestoneDoneIds (F1 hotfix)", () => {
+  const node = (id: string, dependsOn: string[], hasContent: boolean) => ({
+    id,
+    dependsOn,
+    hasContent,
+  });
+
+  it("milestone rỗng có deps chưa DONE → KHÔNG DONE (LOCKED)", () => {
+    const doneIds = resolveMilestoneDoneIds(
+      [node("m1", [], true), node("m2", ["m1"], false)],
+      new Set(), // m1 (có nội dung) chưa xong
+    );
+    expect(doneIds.has("m2")).toBe(false);
+    const status = computeMilestoneStatuses(
+      [node("m1", [], true), node("m2", ["m1"], false)],
+      doneIds,
+    );
+    expect(status.get("m2")).toBe("LOCKED");
+  });
+
+  it("milestone rỗng deps đã DONE → DONE", () => {
+    const doneIds = resolveMilestoneDoneIds(
+      [node("m1", [], true), node("m2", ["m1"], false)],
+      new Set(["m1"]),
+    );
+    expect(doneIds.has("m2")).toBe(true);
+    const status = computeMilestoneStatuses(
+      [node("m1", [], true), node("m2", ["m1"], false)],
+      doneIds,
+    );
+    expect(status.get("m2")).toBe("DONE");
+  });
+
+  it("chuỗi milestone rỗng nối tiếp: fixpoint hội tụ — rỗng không có việc nên DONE khi tới lượt", () => {
+    const nodes = [node("m1", [], true), node("m2", ["m1"], false), node("m3", ["m2"], false)];
+    const doneIds = resolveMilestoneDoneIds(nodes, new Set(["m1"]));
+    // m2 rỗng AVAILABLE → DONE; m3 rỗng deps (m2) đã DONE → cũng DONE (fixpoint).
+    expect(doneIds.has("m2")).toBe(true);
+    expect(doneIds.has("m3")).toBe(true);
+  });
+
+  it("milestone rỗng cuối chuỗi KHÔNG mở khi milestone CÓ nội dung giữa chưa xong", () => {
+    const nodes = [node("m1", [], true), node("m2", ["m1"], true), node("m3", ["m2"], false)];
+    const doneIds = resolveMilestoneDoneIds(nodes, new Set(["m1"]));
+    // m2 có nội dung chưa xong → LOCKED; m3 rỗng không thể AVAILABLE → không DONE.
+    expect(doneIds.has("m2")).toBe(false);
+    expect(doneIds.has("m3")).toBe(false);
+  });
+
+  it("milestone CÓ nội dung không tự DONE (vẫn do service quyết định)", () => {
+    const doneIds = resolveMilestoneDoneIds([node("m1", [], true)], new Set());
+    expect(doneIds.has("m1")).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import { AppError } from "../utils/errors";
 import { RoadmapRepository } from "../repositories/roadmap.repository";
 import { ProgressRepository } from "../repositories/progress.repository";
 import { ExamService } from "./exam.service";
-import { computeMilestoneStatuses } from "../utils/roadmap-logic";
+import { computeMilestoneStatuses, resolveMilestoneDoneIds } from "../utils/roadmap-logic";
 import type { StartExamInput } from "../validations";
 import type { MilestoneRow } from "../repositories/roadmap.repository";
 
@@ -13,7 +13,8 @@ import type { MilestoneRow } from "../repositories/roadmap.repository";
  * - R4 DONE: milestone DONE khi (a) mọi lesson trong milestone đã hoàn thành
  *   (UserLessonProgress.completedAt) VÀ (b) nếu có examBankId thì user đã có ít
  *   nhất 1 session SUBMITTED cho bank đó. Milestone KHÔNG có lessons và không có
- *   examBank → coi như DONE ngay khi AVAILABLE (milestone "điểm hẹn").
+ *   examBank (milestone "điểm hẹn") chỉ DONE khi nó đã AVAILABLE (deps DONE) —
+ *   F1 hotfix: xử lý fixpoint trong `resolveMilestoneDoneIds` (roadmap-logic).
  * - R5 placement: gợi lộ trình theo accuracy placement GẦN NHẤT đã nộp (percent):
  *   ≥80 → "data-scientist", ≥50 → "backend", <50 → "frontend". Chưa có kết quả
  *   placement nào → gợi ý lộ trình đầu tiên với confidence thấp. Thresholds là
@@ -98,10 +99,20 @@ export class RoadmapService {
     const completedSet = new Set(completedIds);
     const bankSet = new Set(submittedBankIds);
 
-    const doneIds = new Set(
+    // DONE set: milestone CÓ nội dung xét theo lessons/exam; milestone RỖNG chỉ
+    // DONE khi AVAILABLE (fixpoint qua resolveMilestoneDoneIds — F1 hotfix).
+    const contentDoneIds = new Set(
       milestones
-        .filter((m) => isMilestoneDone(m, completedSet, bankSet))
+        .filter((m) => hasMilestoneContent(m) && isMilestoneDone(m, completedSet, bankSet))
         .map((m) => m.id),
+    );
+    const doneIds = resolveMilestoneDoneIds(
+      milestones.map((m) => ({
+        id: m.id,
+        dependsOn: m.dependsOn,
+        hasContent: hasMilestoneContent(m),
+      })),
+      contentDoneIds,
     );
 
     const statuses = computeMilestoneStatuses(
@@ -175,15 +186,18 @@ export class RoadmapService {
   }
 }
 
-/** R4 helper: điều kiện DONE của 1 milestone (giả định — xem header class). */
+/** Milestone có nội dung cần hoàn thành (lessons hoặc exam bank). */
+function hasMilestoneContent(milestone: MilestoneRow): boolean {
+  return milestone.lessons.length > 0 || milestone.examBankId !== null;
+}
+
+/** R4 helper: điều kiện DONE của milestone CÓ nội dung (giả định — xem header class). */
 function isMilestoneDone(
   milestone: MilestoneRow,
   completedLessons: ReadonlySet<string>,
   submittedBanks: ReadonlySet<string>,
 ): boolean {
-  const lessonsDone =
-    milestone.lessons.length === 0 || milestone.lessons.every((l) => completedLessons.has(l.lessonId));
+  const lessonsDone = milestone.lessons.every((l) => completedLessons.has(l.lessonId));
   const examDone = !milestone.examBankId || submittedBanks.has(milestone.examBankId);
-  // Milestone không có lessons và không có exam → DONE khi được duyệt qua (AVAILABLE).
   return lessonsDone && examDone;
 }

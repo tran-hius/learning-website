@@ -257,8 +257,9 @@ export class ExamService {
       timeSpentSec,
       weakTopics: [...weakTopics],
       // D15-BE: số vi phạm proctoring (0..99, đã validate ở schema) — lưu session,
-      // KHÔNG ảnh hưởng điểm MVP.
-      proctoringViolations: input.violations ?? 0,
+      // KHÔNG ảnh hưởng điểm MVP. F4 hotfix: undefined (replay idempotent) →
+      // KHÔNG ghi đè giá trị đã lưu về 0.
+      proctoringViolations: input.violations ?? undefined,
       answers: perQuestion.map((p) => ({
         questionId: p.questionId,
         value: p.yourAnswer ?? "",

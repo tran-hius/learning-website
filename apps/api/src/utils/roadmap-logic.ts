@@ -42,3 +42,33 @@ export function computeMilestoneStatuses(
   }
   return status;
 }
+
+/**
+ * F1 hotfix (review db3f181): milestone RỖNG (không lessons, không examBank)
+ * chỉ được coi DONE khi nó đã AVAILABLE (deps đã DONE) — KHÔNG tự DONE ngay.
+ *
+ * Fixpoint: chạy computeMilestoneStatuses với chỉ milestone CÓ nội dung trong
+ * `contentDoneIds` trước; milestone rỗng AVAILABLE được thêm vào doneIds rồi
+ * tính lại, lặp đến khi hội tụ (xử lý trường hợp milestone rỗng phụ thuộc
+ * milestone rỗng). An toàn dừng: mỗi vòng thêm tối đa len phần tử mới.
+ */
+export type MilestoneContentNode = MilestoneNode & { hasContent: boolean };
+
+export function resolveMilestoneDoneIds(
+  milestones: MilestoneContentNode[],
+  contentDoneIds: ReadonlySet<string>,
+): Set<string> {
+  const doneIds = new Set(contentDoneIds);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const statuses = computeMilestoneStatuses(milestones, doneIds);
+    for (const m of milestones) {
+      if (!m.hasContent && !doneIds.has(m.id) && statuses.get(m.id) === "AVAILABLE") {
+        doneIds.add(m.id);
+        changed = true;
+      }
+    }
+  }
+  return doneIds;
+}

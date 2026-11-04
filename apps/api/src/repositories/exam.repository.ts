@@ -76,7 +76,8 @@ export interface IExamRepository {
     passed: boolean;
     timeSpentSec: number;
     weakTopics: string[];
-    proctoringViolations: number;
+    /** undefined → không đè giá trị đã lưu (F4 hotfix: replay idempotent). */
+    proctoringViolations: number | undefined;
     answers: Array<{ questionId: string; value: unknown; isCorrect: boolean }>;
   }): Promise<void>;
   findSubmittedSession(sessionId: string): Promise<
@@ -257,7 +258,8 @@ export class ExamRepository implements IExamRepository {
     passed: boolean;
     timeSpentSec: number;
     weakTopics: string[];
-    proctoringViolations: number;
+    /** undefined → không đè giá trị đã lưu (F4 hotfix: replay idempotent). */
+    proctoringViolations: number | undefined;
     answers: Array<{ questionId: string; value: unknown; isCorrect: boolean }>;
   }): Promise<void> {
     await db.$transaction([
@@ -304,7 +306,10 @@ export class ExamRepository implements IExamRepository {
         data: {
           status: "SUBMITTED",
           submittedAt: new Date(),
-          proctoringViolations: data.proctoringViolations,
+          // F4 hotfix: undefined → bỏ qua field, không reset về 0 khi replay.
+          ...(data.proctoringViolations !== undefined
+            ? { proctoringViolations: data.proctoringViolations }
+            : {}),
         },
         select: { id: true },
       }),

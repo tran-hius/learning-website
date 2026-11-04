@@ -411,6 +411,9 @@ async function main() {
   }
 
   // ── TASK-006: 3 lộ trình mẫu (R1/R2 🔓) + badges (G5) ──────────────────
+  // F1 hotfix (review db3f181): milestone phải có nội dung thật (lessons /
+  // examBankId tham chiếu dữ liệu đã seed) — không còn milestone rỗng nào.
+  const lessonRef = (l: { id: string; title: string }) => ({ lessonId: l.id, title: l.title });
   const roadmapData = [
     {
       slug: "backend",
@@ -418,11 +421,11 @@ async function main() {
       description: "Node.js, API, database và deploy ứng dụng backend.",
       icon: "server",
       milestones: [
-        { title: "Nền tảng JavaScript & Node.js", dependsOn: [] as string[], lessons: [], examBankId: null },
-        { title: "REST API với Express", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Database & ORM (Prisma)", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Auth & Bảo mật", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Deploy & DevOps cơ bản", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Nền tảng JavaScript & Node.js", lessons: [lessonRef(l1), lessonRef(l2)], examBankId: null as string | null },
+        { title: "REST API với Express", lessons: [lessonRef(le1)], examBankId: null },
+        { title: "Database & ORM (Prisma)", lessons: [lessonRef(le2)], examBankId: null },
+        { title: "Auth & Bảo mật", lessons: [lessonRef(l1)], examBankId: null },
+        { title: "Deploy & DevOps cơ bản", lessons: [], examBankId: examBank.id },
       ],
     },
     {
@@ -431,10 +434,10 @@ async function main() {
       description: "HTML/CSS, JavaScript, React và Next.js.",
       icon: "layout",
       milestones: [
-        { title: "HTML & CSS cơ bản", dependsOn: [] as string[], lessons: [], examBankId: null },
-        { title: "JavaScript hiện đại", dependsOn: [], lessons: [], examBankId: null },
-        { title: "React components & hooks", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Next.js & routing", dependsOn: [], lessons: [], examBankId: null },
+        { title: "HTML & CSS cơ bản", lessons: [lessonRef(le1)], examBankId: null },
+        { title: "JavaScript hiện đại", lessons: [lessonRef(le2)], examBankId: null },
+        { title: "React components & hooks", lessons: [lessonRef(l1)], examBankId: null },
+        { title: "Next.js & routing", lessons: [], examBankId: examBank.id },
       ],
     },
     {
@@ -443,13 +446,13 @@ async function main() {
       description: "Python, thống kê, machine learning và trực quan hoá dữ liệu.",
       icon: "chart",
       milestones: [
-        { title: "Python cơ bản", dependsOn: [] as string[], lessons: [], examBankId: null },
-        { title: "NumPy & Pandas", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Thống kê ứng dụng", dependsOn: [], lessons: [], examBankId: null },
-        { title: "Machine Learning nhập môn", dependsOn: [], lessons: [], examBankId: null },
+        { title: "Python cơ bản", lessons: [lessonRef(l2)], examBankId: null },
+        { title: "NumPy & Pandas", lessons: [lessonRef(l1)], examBankId: null },
+        { title: "Thống kê ứng dụng", lessons: [lessonRef(le1)], examBankId: null },
+        { title: "Machine Learning nhập môn", lessons: [], examBankId: examBank.id },
       ],
     },
-  ] as const;
+  ];
 
   for (const rm of roadmapData) {
     const roadmap = await db.roadmap.upsert({
@@ -462,6 +465,8 @@ async function main() {
       orderBy: { order: "asc" },
     });
     // Tạo milestone thiếu (idempotent) rồi nối dependsOn theo chuỗi tuyến tính.
+    // F1 hotfix: update cũng ghi lessons/examBankId để milestone cũ (đang rỗng)
+    // được gán nội dung tham chiếu khi re-seed.
     const created: string[] = existingMilestones.map((m) => m.id);
     for (let i = created.length; i < rm.milestones.length; i++) {
       const m = rm.milestones[i]!;
@@ -470,17 +475,23 @@ async function main() {
           roadmapId: roadmap.id,
           title: m.title,
           order: i + 1,
-          lessons: [] as unknown as object,
+          lessons: m.lessons as unknown as object,
+          examBankId: m.examBankId,
         },
         select: { id: true },
       });
       created.push(row.id);
     }
     for (let i = 0; i < created.length; i++) {
+      const m = rm.milestones[i]!;
       const dependsOn = i === 0 ? [] : [created[i - 1]];
       await db.milestone.update({
         where: { id: created[i] },
-        data: { dependsOn: dependsOn as unknown as object },
+        data: {
+          dependsOn: dependsOn as unknown as object,
+          lessons: m.lessons as unknown as object,
+          examBankId: m.examBankId,
+        },
       });
     }
   }
