@@ -50,8 +50,11 @@ Khi gặp thông tin **chưa được xác định hoặc chưa được xác th
 
 Cách hỏi đúng quy trình:
 - Dev agent đặt trạng thái task = `BLOCKED`, ghi vào task file mục "Câu hỏi cho manager" với các lựa chọn đề xuất (kèm ưu/nhược ngắn) rồi dừng, KHÔNG code phần chưa chắc chắn.
-- Manager trả lời trong task file (mục "Quyết định của manager") hoặc hỏi lại người dùng nếu ngoài phạm vi kế hoạch — sau đó chuyển task về `TODO` để dev tiếp tục.
-- Mọi quyết định kỹ thuật mới (framework/thư viện/cấu trúc/phương thức) phải được ghi lại vào task file hoặc docs để các agent sau dùng theo, tránh quyết 1 lần ở 2 nơi khác nhau.
+- **Mọi quyết định kỹ thuật CUỐI CÙNG thuộc về người dùng (chủ dự án).** Manager KHÔNG tự chốt lựa chọn kỹ thuật:
+  - Manager tổng hợp câu hỏi của dev agent + các phương án (ưu/nhược) → **trình người dùng quyết định**, chờ câu trả lời.
+  - Chỉ khi người dùng đã chọn, manager mới ghi quyết định vào task file (mục "Quyết định của manager — theo người dùng") và chuyển task về `TODO` để dev tiếp tục.
+  - Manager không được trả lời hộ người dùng bằng "ý kiến riêng" như thể quyết định cuối.
+- Mọi quyết định kỹ thuật đã được người dùng duyệt phải ghi lại vào task file hoặc docs để các agent sau dùng theo, tránh quyết 1 lần ở 2 nơi khác nhau.
 - Nếu không hỏi được (chạy batch tự động), agent phải dừng ở trạng thái BLOCKED — tuyệt đối KHÔNG "chọn đại rồi chạy tiếp".
 
 ## 4. Trạng thái task
