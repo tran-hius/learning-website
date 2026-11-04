@@ -400,7 +400,7 @@ export interface EnrollmentListItem {
   roadmap: { id: string; slug: string; title: string; icon?: string | null };
 }
 
-export type MilestoneStatus = "LOCKED" | "AVAILABLE" | "DONE" | "SKIPPED";
+export type MilestoneStatus = "LOCKED" | "AVAILABLE" | "DONE";
 
 /** v1.1 — shape thật của R4 (roadmap.service.getMyProgress). */
 export interface RoadmapProgress {

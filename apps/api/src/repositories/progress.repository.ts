@@ -1,4 +1,5 @@
 import { db } from "../utils/db";
+import { isPomodoroQuotaExceeded } from "../utils/pomodoro";
 
 /**
  * Progress repository — UserLessonProgress + XP (L1/L2, TASK-003).
@@ -48,8 +49,10 @@ export interface IProgressRepository {
   ): Promise<{ lessonDays: Date[]; examDays: Date[]; pomodoroDays: Date[] }>;
   /**
    * F2 (TASK-007): create-then-count trong MỘT transaction — ghi session, đếm
-   * lại (bao gồm session vừa tạo) và cộng XP. Nếu vượt quota → throw để rollback
-   * toàn bộ (không còn race count-then-create cho phép vượt 8 chuỗi/ngày).
+   * lại (bao gồm session vừa tạo) và cộng XP. Vượt quota → throw để rollback
+   * nguyên khối (gồm XP). Transaction thu hẹp race window nhưng KHÔNG loại trừ
+   * hoàn toàn race đa request trên MySQL REPEATABLE READ — giải pháp cứng
+   * (FOR UPDATE / unique constraint) là backlog.
    * Trả về số session sau khi ghi (sessionsToday).
    */
   recordPomodoroTransaction(params: {
@@ -190,7 +193,10 @@ export class ProgressRepository implements IProgressRepository {
     const quotaError = new Error("POMODORO_QUOTA_EXCEEDED");
     return db.$transaction(async (tx) => {
       // Create-then-count: count trong cùng transaction, bao gồm session vừa ghi
-      // (F2 — count-then-create cũ có race 2 request song song cùng vượt quota).
+      // (F2). Transaction này thu hẹp race window và rollback nguyên khối XP khi
+      // vượt quota, nhưng KHÔNG loại trừ hoàn toàn race đa request trên MySQL
+      // REPEATABLE READ (count của 2 tx song song có thể cùng đọc snapshot cũ).
+      // Giải pháp cứng (SELECT ... FOR UPDATE / unique constraint) → backlog.
       await tx.pomodoroSession.create({
         data: { userId, minutes, completedAt },
         select: { id: true },
@@ -198,7 +204,7 @@ export class ProgressRepository implements IProgressRepository {
       const countToday = await tx.pomodoroSession.count({
         where: { userId, completedAt: { gte: dayStart, lt: dayEnd } },
       });
-      if (countToday > maxPerDay) throw quotaError;
+      if (isPomodoroQuotaExceeded(countToday)) throw quotaError;
       await tx.user.update({
         where: { id: userId },
         data: { xp: { increment: xpPerSession }, lastActiveAt: new Date() },
