@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 5 — giao diện thi & thi thử
-- **Trạng thái:** DONE_PRIVATE (dev xong — chờ reviewer)
+- **Trạng thái:** DONE — final-reviewer: APPROVED_WITH_CONDITIONS (a11y timer/modal vào backlog pass chung) — commit `075ea93`
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-004 (làm ĐẦU PHIÊN, blocker-level)
 1. **FE-1** `lib/api/content.server.ts`: `getLessonServer` chuyển gọi `/lessons/by-slug/:slug` (D10) — xóa comment stale "chưa có endpoint tra slug→id". Đây là lý do trang bài học thật đang rơi demo mode oan.
