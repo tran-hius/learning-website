@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 4 — giao diện thực hành đặc thù
-- **Trạng thái:** DONE_PRIVATE (commit `6d9f013` — chờ reviewer)
+- **Trạng thái:** DONE_PRIVATE (commit `539d693` — chờ reviewer)
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-003 (làm TRONG task này)
 1. **Bỏ gate percent≥70** cho nút "Hoàn thành bài" (D9) — nút luôn hiện; celebration vẫn phân biệt ≥70/<70.
@@ -33,7 +33,7 @@
 (không có — task chạy trọn, không BLOCKED)
 
 ## Ghi chú của dev (TASK-004-FR)
-- Commit hash: `6d9f013` — lint + build pass (`pnpm --filter @learning/web lint` / `build`).
+- Commit hash: `539d693` — lint + build pass (`pnpm --filter @learning/web lint` / `build`).
 - File mới: `components/audio/ListeningPlayer.tsx`, `components/speaking/SpeakingPractice.tsx`, `components/python/PythonEditor.tsx`, `lib/api/english.ts` (S_E1/S_E2 client, shape khớp english.service.ts).
 - `lib/api/practice.ts` thêm `execPython` (P3). Lesson page render practice set theo mode (LISTENING/SPEAKING/CODING/QUIZ...).
 - 3 điều kiện reviewer: bỏ gate percent≥70 (nút Hoàn thành luôn hiện sau khi nộp), demo text XP trung thực, xoá `public/animations/success-check.json`.
