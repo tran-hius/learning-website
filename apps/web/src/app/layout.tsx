@@ -12,9 +12,9 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "Học Nè — Người bạn học cùng",
+  title: "SynapseBrain — Người bạn học cùng",
   description:
-    "Học Toán, Tiếng Anh, Python cùng người bạn học dễ thương: bài học ngắn, lộ trình nghề nghiệp, thi thử và streak mỗi ngày.",
+    "Học Toán, Tiếng Anh, Python cùng SynapseBrain — người bạn học dễ thương: bài học ngắn, lộ trình nghề nghiệp, thi thử và streak mỗi ngày.",
 };
 
 export default function RootLayout({

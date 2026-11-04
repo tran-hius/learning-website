@@ -46,6 +46,15 @@ export function friendlyApiMessage(err: unknown): string {
 // Phase 1: access token nằm cookie httpOnly do backend tự gia hạn.
 // Sau này thêm refresh-on-401 một lần rồi retry ở đây.
 
+// ── Base URL ─────────────────────────────────────────────────────────
+// Browser: gọi relative "/api/v1" (Next rewrite proxy sang apps/api).
+// Server Component: fetch relative sẽ fail → dùng API_PROXY_TARGET (cùng
+// biến env với next.config.mjs) để build URL tuyệt đối.
+
+export function serverApiBase(): string {
+  return process.env.API_PROXY_TARGET ?? "http://localhost:4000";
+}
+
 // ── Fetch wrapper ────────────────────────────────────────────────────
 
 type RequestOptions = {
@@ -54,6 +63,8 @@ type RequestOptions = {
   /** multipart: truyền FormData, wrapper không set Content-Type */
   formData?: FormData;
   signal?: AbortSignal;
+  /** headers bổ sung (vd forward cookie từ next/headers khi gọi phía server) */
+  headers?: Record<string, string>;
 };
 
 /**
@@ -64,13 +75,31 @@ export async function apiFetch<T>(
   path: string,
   opts: RequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, formData, signal } = opts;
+  return request<T>("", path, opts);
+}
+
+/** Giống apiFetch nhưng chạy trong Server Component (base URL tuyệt đối). */
+export async function apiFetchServer<T>(
+  path: string,
+  opts: RequestOptions = {},
+): Promise<T> {
+  return request<T>(serverApiBase(), path, opts);
+}
+
+async function request<T>(
+  base: string,
+  path: string,
+  opts: RequestOptions,
+): Promise<T> {
+  const { method = "GET", body, formData, signal, headers } = opts;
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(`${base}${path}`, {
       method,
-      headers: formData ? undefined : { "Content-Type": "application/json" },
+      headers: formData
+        ? headers
+        : { "Content-Type": "application/json", ...headers },
       body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
       cache: "no-store",
       credentials: "same-origin",

@@ -92,7 +92,7 @@ export default function HomePage() {
               key={s.slug}
               href="/subjects"
               className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-transform duration-150 hover:scale-105",
+                "flex min-h-[44px] items-center gap-2 rounded-full px-4 text-sm font-medium transition-transform duration-150 hover:scale-105",
                 s.chipClass,
               )}
             >

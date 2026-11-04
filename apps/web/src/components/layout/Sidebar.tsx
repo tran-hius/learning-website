@@ -28,7 +28,7 @@ export function Sidebar() {
             <Link
               key={s.slug}
               href="/subjects"
-              className="flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-[15px] text-ink-700 transition-colors duration-150 hover:bg-cream-deep hover:text-ink-900"
+              className="flex min-h-[44px] items-center gap-2.5 rounded-[12px] px-3 text-[15px] text-ink-700 transition-colors duration-150 hover:bg-cream-deep hover:text-ink-900"
             >
               <span
                 className={cn("flex size-7 items-center justify-center rounded-full", s.chipClass)}

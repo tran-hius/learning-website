@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Button tối giản theo API shadcn/ui, token màu theo docs/ui-design-guide.md.
- * Bo tròn 12px (guide mục 5), touch target ≥ 44px.
+ * Bo tròn 12px (guide mục 5). Touch target ≥ 44px áp dụng cho MỌI size
+ * (guide mục 9): default/lg dùng min-h 44/48px, `sm` và `icon` cũng ≥ 44px.
  */
 const buttonVariants = {
   base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[12px] text-[15px] font-semibold transition-colors duration-200 ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-fresh-400 cursor-pointer",
@@ -21,7 +22,7 @@ const buttonVariants = {
   } as const,
   size: {
     default: "",
-    sm: "min-h-[36px] px-3 text-sm",
+    sm: "min-h-[44px] px-3 text-sm",
     lg: "min-h-[48px] px-6 text-base",
     icon: "size-11 p-0",
   } as const,

@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { Construction } from "lucide-react";
 import { Container } from "@/components/layout/Container";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SUBJECTS } from "@/lib/subjects-data";
 import { cn } from "@/lib/utils";
@@ -16,35 +14,40 @@ export default function SubjectsPage() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">Môn học</h1>
         <p className="mt-1 text-[15px] text-ink-700">
-          7 môn đang có trên Học Nè — chọn 1 môn để xem các chương nhé!
+          7 môn đang có trên SynapseBrain — nội dung đang được duyệt, sắp mở dần nha!
         </p>
       </header>
 
+      {/* Phase 1: chưa có trang chi tiết môn (S2 chưa nối) → card ở trạng thái
+          "sắp ra mắt" rõ ràng, KHÔG tự link vào chính nó (self-link chết). */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {SUBJECTS.map((s) => {
           const Icon = s.icon;
           return (
-            <Link key={s.slug} href="/subjects" className="group">
-              <Card className="h-full transition-transform duration-200 ease-out group-hover:-translate-y-0.5">
-                <CardHeader className="flex-row items-start gap-3">
-                  <span
-                    className={cn("flex size-11 shrink-0 items-center justify-center rounded-[12px]", s.chipClass)}
-                  >
-                    <Icon className="size-5" aria-hidden />
-                  </span>
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {s.name}
-                      <Badge variant="honey">sắp ra mắt</Badge>
-                    </CardTitle>
-                    <CardDescription>{s.description}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-sm text-ink-500">
-                  Chương &amp; bài học sẽ mở dần khi nội dung được duyệt.
-                </CardContent>
-              </Card>
-            </Link>
+            <div
+              key={s.slug}
+              aria-disabled="true"
+              className="h-full cursor-not-allowed rounded-[16px] border border-dashed border-ink-300/50 bg-paper/60 opacity-75 shadow-[0_4px_24px_rgba(0,0,0,0.04)]"
+              title="Môn này sắp ra mắt — chưa mở nội dung"
+            >
+              <div className="flex flex-row items-start gap-3 p-5">
+                <span
+                  className={cn("flex size-11 shrink-0 items-center justify-center rounded-[12px] grayscale-[30%]", s.chipClass)}
+                >
+                  <Icon className="size-5" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-semibold leading-snug text-ink-900">
+                    {s.name}
+                    <Badge variant="honey">sắp ra mắt</Badge>
+                  </h3>
+                  <p className="text-sm text-ink-500">{s.description}</p>
+                </div>
+              </div>
+              <div className="p-5 pt-0 text-sm text-ink-500">
+                Chương &amp; bài học sẽ mở dần khi nội dung được duyệt.
+              </div>
+            </div>
           );
         })}
       </div>
