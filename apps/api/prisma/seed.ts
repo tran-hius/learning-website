@@ -295,8 +295,123 @@ async function main() {
     });
   }
 
+  // ── TASK-005: exam bank + câu hỏi thi (source EXAM) cho E1–E6 ──────────
+  const examBank = await db.examBank.upsert({
+    where: { slug: "toan-co-ban" },
+    update: { name: "Kiểm tra Toán cơ bản", durationSec: 1800 },
+    create: { slug: "toan-co-ban", name: "Kiểm tra Toán cơ bản", durationSec: 1800 },
+  });
+  const examQuestionCount = await db.questionItem.count({
+    where: { examBankId: examBank.id },
+  });
+  if (examQuestionCount === 0) {
+    await db.questionItem.createMany({
+      data: [
+        {
+          type: "MCQ_SINGLE",
+          difficulty: "EASY",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Kết quả của $7 \\times 8$ là bao nhiêu?",
+          options: [
+            { id: "opt_a", content: "54" },
+            { id: "opt_b", content: "56" },
+            { id: "opt_c", content: "58" },
+          ],
+          answer: { correctOptionIds: ["opt_b"] },
+          explanation: "7 × 8 = 56.",
+          thinkingHints: ["Nhớ bảng cửu chương 7."],
+          hintAnswerRef: "Nhanhnhan",
+        },
+        {
+          type: "MCQ_SINGLE",
+          difficulty: "MEDIUM",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Giá trị của $\\frac{3}{4} + \\frac{1}{4}$ là bao nhiêu?",
+          options: [
+            { id: "opt_a", content: "1" },
+            { id: "opt_b", content: "4/8" },
+            { id: "opt_c", content: "3/8" },
+          ],
+          answer: { correctOptionIds: ["opt_a"] },
+          explanation: "3/4 + 1/4 = 4/4 = 1.",
+          thinkingHints: ["Hai phân số cùng mẫu thì cộng tử số."],
+          hintAnswerRef: "Phanso",
+        },
+        {
+          type: "MCQ_MULTI",
+          difficulty: "MEDIUM",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Chọn các số là số tự nhiên:",
+          options: [
+            { id: "opt_a", content: "0" },
+            { id: "opt_b", content: "-3" },
+            { id: "opt_c", content: "12" },
+          ],
+          answer: { correctOptionIds: ["opt_a", "opt_c"] },
+          explanation: "Số tự nhiên là 0, 1, 2, ... nên -3 không thuộc.",
+          thinkingHints: ["Số tự nhiên bắt đầu từ 0."],
+          hintAnswerRef: "Sotunhien",
+        },
+        {
+          type: "FILL_ANSWER",
+          difficulty: "MEDIUM",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Nhập kết quả của $15 - 6$.",
+          options: [],
+          answer: { correctText: "9" },
+          explanation: "15 - 6 = 9.",
+          thinkingHints: ["Trừ từng hàng chục, đơn vị."],
+          hintAnswerRef: "Pheptru",
+        },
+        {
+          type: "MATCH_PAIRS",
+          difficulty: "HARD",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Nối phép tính với kết quả đúng.",
+          options: [
+            { id: "opt_l1", content: "2 + 2" },
+            { id: "opt_l2", content: "3 × 3" },
+            { id: "opt_r1", content: "4" },
+            { id: "opt_r2", content: "9" },
+          ],
+          // BE-2 (TASK-005): shape thống nhất {leftId, rightId} theo contract P1.
+          answer: {
+            pairs: [
+              { leftId: "opt_l1", rightId: "opt_r1" },
+              { leftId: "opt_l2", rightId: "opt_r2" },
+            ],
+          },
+          explanation: "2 + 2 = 4 và 3 × 3 = 9.",
+          thinkingHints: ["Tính từng phép tính rồi nối."],
+          hintAnswerRef: "Pheptinh",
+        },
+        {
+          type: "MCQ_SINGLE",
+          difficulty: "HARD",
+          source: "EXAM",
+          examBankId: examBank.id,
+          stem: "Một hình chữ nhật có chu vi 20 và chiều dài 7. Chiều rộng là bao nhiêu?",
+          options: [
+            { id: "opt_a", content: "3" },
+            { id: "opt_b", content: "6" },
+            { id: "opt_c", content: "13" },
+          ],
+          answer: { correctOptionIds: ["opt_a"] },
+          explanation: "Chu vi = 2 × (dài + rộng) → rộng = 20/2 - 7 = 3.",
+          thinkingHints: ["Dùng công thức chu vi hình chữ nhật."],
+          hintAnswerRef: "Hinhchunhat",
+        },
+      ],
+    });
+  }
+
   console.log(
-    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=${await db.practiceSet.count()}, questions=${await db.questionItem.count()}`,
+    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=${await db.practiceSet.count()}, questions=${await db.questionItem.count()}, examBanks=${await db.examBank.count()}, examQuestions=${await db.questionItem.count({ where: { source: "EXAM" } })}`,
   );
 }
 

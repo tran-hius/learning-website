@@ -11,6 +11,13 @@ export {
 } from "./question-serializer";
 export type { QuestionForStudent, SerializedQuestion } from "./question-serializer";
 export {
+  remainingSeconds,
+  isExpired,
+  timeSpentSeconds,
+  pickQuestionIdsByDifficulty,
+  EXAM_QUESTION_COUNT,
+} from "./exam-timer";
+export {
   signAccessToken,
   verifyAccessToken,
   ACCESS_TOKEN_COOKIE,

@@ -220,6 +220,9 @@ model ExamSession {
   submittedAt  DateTime?
   status       ExamSessionStatus  @default(IN_PROGRESS)
   progress     Json?
+  /// TASK-005: đề đã random cho session này (thứ tự theo index) — nguồn chân lý khi
+  /// Redis vắng mặt (mirror Redis chỉ là tối ưu, D13).
+  questionIds  Json?
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   examBank     ExamBank?          @relation(fields: [examBankId], references: [id])
   answers      ExamAnswer[]

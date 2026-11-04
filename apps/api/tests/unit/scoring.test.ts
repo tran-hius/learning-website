@@ -9,7 +9,12 @@ describe("isAnswerCorrect", () => {
   const mcqSingle = { correctOptionIds: ["opt_b"] };
   const mcqMulti = { correctOptionIds: ["opt_a", "opt_c"] };
   const fill = { correctText: "5" };
-  const pairs = { pairs: [{ left: "one", right: "1" }, { left: "two", right: "2" }] };
+  const pairs = {
+    pairs: [
+      { leftId: "opt_l1", rightId: "opt_r1" },
+      { leftId: "opt_l2", rightId: "opt_r2" },
+    ],
+  };
 
   it("MCQ_SINGLE: đúng khi khớp 1 option", () => {
     expect(isAnswerCorrect("MCQ_SINGLE", mcqSingle, "opt_b")).toBe(true);
@@ -40,24 +45,26 @@ describe("isAnswerCorrect", () => {
     expect(isAnswerCorrect("FILL_ANSWER", fill, "6")).toBe(false);
   });
 
-  it("MATCH_PAIRS: đúng khi đủ cặp, bất kể thứ tự", () => {
+  it("MATCH_PAIRS: đúng khi đủ cặp, bất kể thứ tự (shape {leftId, rightId} — BE-2)", () => {
     expect(
       isAnswerCorrect("MATCH_PAIRS", pairs, [
-        { left: "two", right: "2" },
-        { left: "one", right: "1" },
+        { leftId: "opt_l2", rightId: "opt_r2" },
+        { leftId: "opt_l1", rightId: "opt_r1" },
       ]),
     ).toBe(true);
   });
   it("MATCH_PAIRS: sai khi sai 1 cặp", () => {
     expect(
       isAnswerCorrect("MATCH_PAIRS", pairs, [
-        { left: "one", right: "1" },
-        { left: "two", right: "1" },
+        { leftId: "opt_l1", rightId: "opt_r1" },
+        { leftId: "opt_l2", rightId: "opt_r1" },
       ]),
     ).toBe(false);
   });
   it("MATCH_PAIRS: sai khi thiếu cặp", () => {
-    expect(isAnswerCorrect("MATCH_PAIRS", pairs, [{ left: "one", right: "1" }])).toBe(false);
+    expect(isAnswerCorrect("MATCH_PAIRS", pairs, [{ leftId: "opt_l1", rightId: "opt_r1" }])).toBe(
+      false,
+    );
   });
 
   it("LISTEN_MCQ: chấm như MCQ_SINGLE", () => {
@@ -70,8 +77,8 @@ describe("correctAnswerOf", () => {
   it("trả correctOptionIds / correctText / pairs theo loại", () => {
     expect(correctAnswerOf("MCQ_SINGLE", { correctOptionIds: ["opt_b"] })).toEqual(["opt_b"]);
     expect(correctAnswerOf("FILL_ANSWER", { correctText: "5" })).toBe("5");
-    expect(correctAnswerOf("MATCH_PAIRS", { pairs: [{ left: "a", right: "b" }] })).toEqual([
-      { left: "a", right: "b" },
+    expect(correctAnswerOf("MATCH_PAIRS", { pairs: [{ leftId: "a", rightId: "b" }] })).toEqual([
+      { leftId: "a", rightId: "b" },
     ]);
   });
 });

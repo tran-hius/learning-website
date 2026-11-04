@@ -3,14 +3,14 @@ import { z } from "zod";
 /**
  * Validations thực hành & Python (contract mục 4 — TASK-004, P1–P3).
  * value tùy loại câu hỏi: string (MCQ/FILL), string[] (MCQ_MULTI),
- * {left, right}[] (MATCH_PAIRS).
+ * {leftId, rightId}[] (MATCH_PAIRS — BE-2 TASK-005, khớp contract P1).
  */
 export const attemptAnswerSchema = z.object({
   questionId: z.string().trim().min(1),
   value: z.union([
     z.string(),
     z.array(z.string()),
-    z.array(z.object({ left: z.string().min(1), right: z.string().min(1) })),
+    z.array(z.object({ leftId: z.string().min(1), rightId: z.string().min(1) })),
   ]),
 });
 

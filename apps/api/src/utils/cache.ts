@@ -8,18 +8,25 @@ import { logger } from "./logger";
  * - Mọi thao tác đều try/catch, không bao giờ làm fail request vì cache.
  */
 
+type PipelineLike = {
+  incr(key: string): PipelineLike;
+  expire(key: string, ttl: number): PipelineLike;
+  exec(): Promise<Array<[Error | null, unknown] | null>>;
+};
+
 type RedisLike = {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, mode: "EX", ttl: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
-  incr(key: string): Promise<number>;
-  expire(key: string, ttl: number): Promise<unknown>;
+  pipeline(): PipelineLike;
   quit(): Promise<unknown>;
 };
 
 let client: RedisLike | null = null;
 let disabled = false;
 let initPromise: Promise<RedisLike | null> | null = null;
+/** Warn "Redis chết" MỘT lần duy nhất (flag như init path — BE-1, TASK-005). */
+let rateLimitWarned = false;
 
 async function getClient(): Promise<RedisLike | null> {
   if (client) return client;
@@ -88,10 +95,13 @@ export async function cacheDel(key: string): Promise<void> {
 }
 
 /**
- * Rate limit best-effort bằng Redis INCR + TTL (TASK-004, P3).
- * - Redis sống: trả count trong cửa sổ `windowSec`; caller quyết định cho qua hay từ chối.
- * - Redis chết / không có: trả `{ allowed: true, remaining: null }` và log warn MỘT lần
- *   (best-effort như toàn bộ cache.ts — rate limit không được phép làm sập API).
+ * Rate limit best-effort bằng Redis — ATOMIC (BE-1, TASK-005):
+ * - Dùng pipeline MULTI (INCR + EXPIRE trong 1 lượt) → key KHÔNG BAO GIỜ tồn tại
+ *   không TTL, kể cả khi process crash giữa chừng (EXPIRE luôn được gửi cùng lượt).
+ * - EXPIRE được gửi mỗi lần gọi (idempotent) → cửa sổ luôn có TTL đúng ngay cả khi
+ *   lần INCR đầu tiên đã xảy ra trước khi client disconnect.
+ * - Redis chết / không có: trả `{ allowed: true, remaining: null }`, warn MỘT lần
+ *   (flag `rateLimitWarned`) rồi im lặng — không warn mỗi request.
  */
 export async function hitRateLimit(
   key: string,
@@ -101,14 +111,19 @@ export async function hitRateLimit(
   try {
     const c = await getClient();
     if (!c) return { allowed: true, remaining: null };
-    const count = await c.incr(key);
-    if (count === 1) {
-      await c.expire(key, windowSec);
-    }
+    const pipe = c.pipeline();
+    pipe.incr(key);
+    pipe.expire(key, windowSec);
+    const results = await pipe.exec();
+    const count = typeof results?.[0]?.[1] === "number" ? (results[0][1] as number) : 1;
+    rateLimitWarned = false; // Redis sống lại → cho phép warn lần tiếp nếu chết lần nữa
     const remaining = Math.max(0, limit - count);
     return { allowed: count <= limit, remaining };
   } catch (err) {
-    logger.warn({ err }, "Rate limit check failed — allowing request (best-effort)");
+    if (!rateLimitWarned) {
+      logger.warn({ err }, "Rate limit check failed — allowing request (best-effort)");
+      rateLimitWarned = true;
+    }
     return { allowed: true, remaining: null };
   }
 }

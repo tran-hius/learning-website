@@ -65,3 +65,15 @@ export type {
 } from "./practice.schema";
 export { speakingAttemptBodySchema, listeningResourceParamSchema } from "./english.schema";
 export type { SpeakingAttemptBodyInput } from "./english.schema";
+export {
+  startExamSchema,
+  examKindSchema,
+  sessionIdParamSchema,
+  examProgressSchema,
+  examSubmitSchema,
+} from "./exam.schema";
+export type {
+  StartExamInput,
+  ExamProgressInput,
+  ExamSubmitInput,
+} from "./exam.schema";

@@ -1,16 +1,19 @@
 /**
- * Chấm bài practice server-side (TASK-004, P1) — pure functions, unit-testable.
+ * Chấm bài practice/exam server-side (TASK-004 P1, TASK-005 E4) — pure functions.
  * Hỗ trợ đủ 5 loại câu hỏi theo contract mục 3.1:
  *   MCQ_SINGLE / LISTEN_MCQ  → value: string (option id)
  *   MCQ_MULTI                → value: string[] (đúng hết mới đúng — như E4)
  *   FILL_ANSWER              → value: string (so khớp không phân biệt hoa/thường, trim)
- *   MATCH_PAIRS              → value: {left, right}[] (không phụ thuộc thứ tự)
+ *   MATCH_PAIRS              → value: {leftId, rightId}[] (id option, không phụ thuộc thứ tự)
+ *
+ * BE-2 (TASK-005): thống nhất shape MATCH_PAIRS với contract P1 = {leftId, rightId}
+ * (id của option), thay cho {left, right} (text).
  */
 
 export type QuestionAnswer = {
   correctOptionIds?: string[];
   correctText?: string;
-  pairs?: Array<{ left: string; right: string }>;
+  pairs?: Array<{ leftId: string; rightId: string }>;
 };
 
 export type QuestionTypeForScoring =
@@ -23,14 +26,14 @@ export type QuestionTypeForScoring =
 export type PracticeAnswerValue =
   | string
   | string[]
-  | Array<{ left: string; right: string }>;
+  | Array<{ leftId: string; rightId: string }>;
 
 function normalizeText(v: string): string {
   return v.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function pairsKeySet(pairs: Array<{ left: string; right: string }>): Set<string> {
-  return new Set(pairs.map((p) => `${normalizeText(p.left)}=>${normalizeText(p.right)}`));
+function pairsKeySet(pairs: Array<{ leftId: string; rightId: string }>): Set<string> {
+  return new Set(pairs.map((p) => `${normalizeText(p.leftId)}=>${normalizeText(p.rightId)}`));
 }
 
 /** Đáp án của 1 câu có khớp với `answer` không. `value` là raw từ client. */
@@ -60,7 +63,7 @@ export function isAnswerCorrect(
     case "MATCH_PAIRS": {
       if (!Array.isArray(value)) return false;
       const expected = answer.pairs ?? [];
-      const given = value as Array<{ left: string; right: string }>;
+      const given = value as Array<{ leftId: string; rightId: string }>;
       if (given.length !== expected.length) return false;
       const expectedKeys = pairsKeySet(expected);
       const givenKeys = pairsKeySet(given);

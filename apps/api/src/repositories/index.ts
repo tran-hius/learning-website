@@ -21,4 +21,11 @@ export { ProgressRepository } from "./progress.repository";
 export type { IProgressRepository, LessonProgressRow } from "./progress.repository";
 export { EnglishRepository } from "./english.repository";
 export type { IEnglishRepository, SpeakingAttemptRow } from "./english.repository";
+export { ExamRepository } from "./exam.repository";
+export type {
+  IExamRepository,
+  ExamSessionRow,
+  ExamAnswerRow,
+  ExamHistoryRow,
+} from "./exam.repository";
 export type { IBaseRepository } from "./interfaces";
