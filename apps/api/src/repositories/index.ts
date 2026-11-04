@@ -6,4 +6,17 @@ export {
   generateRefreshToken,
 } from "./refresh-token.repository";
 export type { IRefreshTokenRepository } from "./refresh-token.repository";
+export { ContentRepository } from "./content.repository";
+export type {
+  IContentRepository,
+  SubjectRow,
+  SubjectWithCountRow,
+  ChapterBriefRow,
+  LessonBriefRow,
+  LessonFullRow,
+  QuestionRow,
+  PracticeSetRow,
+} from "./content.repository";
+export { ProgressRepository } from "./progress.repository";
+export type { IProgressRepository, LessonProgressRow } from "./progress.repository";
 export type { IBaseRepository } from "./interfaces";

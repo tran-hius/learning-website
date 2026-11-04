@@ -70,9 +70,17 @@ export const refresh = asyncHandler(async (req, res) => {
   sendOk(res, { user });
 });
 
-/** A6: POST /auth/logout — any: thu hồi refresh + xoá cookie. */
+/**
+ * A6: POST /auth/logout — any (🔓 best-effort, quyết định D7 của final-reviewer).
+ * Thu hồi refresh token nếu còn đọc được `rt_v`; MỌI lỗi bên dưới bị nuốt (best-effort)
+ * và cookie `at_v`/`rt_v` luôn được clear bất kể trạng thái.
+ */
 export const logout = asyncHandler(async (req, res) => {
-  await authService.logout(req.cookies?.[REFRESH_TOKEN_COOKIE]);
+  try {
+    await authService.logout(req.cookies?.[REFRESH_TOKEN_COOKIE]);
+  } catch {
+    // best-effort: lỗi thu hồi (DB...) không chặn việc xoá cookie.
+  }
   clearAuthCookies(res);
   sendOk(res, {});
 });
@@ -129,6 +137,8 @@ export const oauthCallback = asyncHandler(async (req, res) => {
   const callbackUrl = typeof stored.callbackUrl === "string" && stored.callbackUrl.startsWith("/") ? stored.callbackUrl : "/";
 
   if (typeof code !== "string" || code.length === 0) {
+    // Điều kiện final-reviewer TASK-002: nhánh thiếu `code` cũng phải dọn cookie state.
+    res.clearCookie(AuthService.OAUTH_STATE_COOKIE, { path: "/" });
     throw new AppError("AUTH_INVALID", "Missing OAuth code", 401);
   }
 

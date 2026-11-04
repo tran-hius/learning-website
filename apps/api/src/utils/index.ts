@@ -4,6 +4,12 @@ export { logger } from "./logger";
 export { AppError } from "./errors";
 export { asyncHandler } from "./async-handler";
 export { hashPassword, verifyPassword } from "./password";
+export { cacheGet, cacheSet, cacheDel, cacheClose } from "./cache";
+export {
+  serializeQuestionForStudent,
+  serializeQuestionsForStudent,
+} from "./question-serializer";
+export type { QuestionForStudent, SerializedQuestion } from "./question-serializer";
 export {
   signAccessToken,
   verifyAccessToken,

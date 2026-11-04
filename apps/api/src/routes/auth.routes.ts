@@ -11,5 +11,7 @@ authRouter.post("/login", asyncHandler(authController.login)); // A2 🔓
 authRouter.get("/oauth/:provider", asyncHandler(authController.oauthStart)); // A3 🔓
 authRouter.get("/callback/:provider", asyncHandler(authController.oauthCallback)); // A4 🔓
 authRouter.post("/refresh", asyncHandler(authController.refresh)); // A5 🔓
-authRouter.post("/logout", requireAuth, asyncHandler(authController.logout)); // A6 any
+// A6 any (quyết định D7): logout 🔓 best-effort — KHÔNG requireAuth.
+// Người dùng hết token/cookie lệch vẫn phải logout được: controller luôn clear cookie.
+authRouter.post("/logout", asyncHandler(authController.logout)); // A6 🔓 any
 authRouter.get("/me", requireAuth, asyncHandler(authController.me)); // A7 any

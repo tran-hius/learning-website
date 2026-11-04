@@ -264,7 +264,14 @@ export class AuthService {
     };
   }
 
-  /** Upsert user OAuth (tạo mới nếu email chưa có, role STUDENT, mật khẩu random). */
+  /**
+   * Upsert user OAuth.
+   *
+   * QUYẾT ĐỊNH D7 (docs/api-contract.md mục 12, người dùng duyệt 05/11/2026):
+   * OAuth linking = link-by-email cho MVP — profile OAuth có email trùng user cũ
+   * (email được provider verify) thì đăng nhập vào user đó, KHÔNG tạo bản sao.
+   * Bảng `Account` (liên kết multi-provider: 1 user – N provider) là roadmap phase sau.
+   */
   async upsertOAuthUser(provider: OAuthProvider, profile: OAuthProfile): Promise<UserFullRow> {
     if (profile.email) {
       const existing = await this.users.findByEmail(profile.email);
