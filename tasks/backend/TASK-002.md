@@ -35,6 +35,7 @@
 
 ## Ghi chú của reviewer
 (điền sau review)
+- Commit: `1c2ae17` — TASK-002(api): auth+user endpoints, jwt/bcrypt, shared contract types, env guard
 
 ## Ghi chú thực thi của dev
 - Files chính: `packages/shared/src/types/{api,entities}.ts` + `index.ts`; `apps/api/src/{config/app.ts, utils/{jwt,password,async-handler}.ts, middlewares/auth.ts, services/{auth,user}.service.ts, repositories/{user,refresh-token}.repository.ts, controllers/{auth,user}.controller.ts, routes/{auth,user}.routes.ts, validations/*}`; `apps/api/prisma/schema.prisma` (+ model RefreshToken); `apps/api/tests/unit/config.test.ts`.
