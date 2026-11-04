@@ -41,6 +41,12 @@ export const enrollRoadmap = asyncHandler(async (req, res) => {
   sendOk(res, await roadmapService.enroll(userId, id), 201);
 });
 
+/** GET /roadmaps/me — enrollments của user (TASK-007, thay localStorage FE). */
+export const listMyEnrollments = asyncHandler(async (req, res) => {
+  const userId = requireAuthContext(req);
+  sendOk(res, await roadmapService.listMyEnrollments(userId));
+});
+
 /** R4: GET /roadmaps/me/:enrollmentId — tiến độ + milestone unlock theo dependencies. */
 export const getMyRoadmapProgress = asyncHandler(async (req, res) => {
   const userId = requireAuthContext(req);
@@ -59,6 +65,7 @@ export const roadmapController = {
   listRoadmaps,
   getRoadmap,
   enrollRoadmap,
+  listMyEnrollments,
   getMyRoadmapProgress,
   startPlacementTest,
 };

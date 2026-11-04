@@ -10,7 +10,7 @@ export function failBody(
   code: string,
   message: string,
   details?: unknown,
-): ApiResponse<never> {
+): { success: false; data: null; error: ApiErrorBody } {
   const error: ApiErrorBody = {
     code,
     message,

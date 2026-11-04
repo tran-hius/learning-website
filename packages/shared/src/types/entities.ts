@@ -223,6 +223,8 @@ export interface ExamSession {
   totalQuestions: number;
   startedAt: string;
   expiresAt: string;
+  /** v1.1 — số giây còn lại tính tại thời điểm response (E1). */
+  remainingSec: number;
 }
 
 export interface ExamQuestionItem {
@@ -236,6 +238,11 @@ export interface ExamQuestionItem {
 
 export interface SubmitExamInput {
   answers: Array<{ questionId: string; value: AnswerValue }>;
+  /**
+   * v1.1 (D15): số lần vi phạm proctoring — server lưu vào session để admin xem,
+   * KHÔNG ảnh hưởng điểm ở MVP. Bỏ qua (undefined) = không đè giá trị đã lưu.
+   */
+  violations?: number;
 }
 
 export interface ExamPerQuestion {
@@ -252,8 +259,25 @@ export interface ExamResult {
   percent: number;
   passed: boolean;
   timeSpentSec: number;
+  /** v1.1 — XP exam (+5/câu đúng, mục 6). Demo chấm local có thể không có. */
+  xpEarned?: number;
   perQuestion: ExamPerQuestion[];
   weakTopics: string[];
+  /**
+   * v1.1 (D15): số lần vi phạm proctoring đã ghi nhận. `undefined`/0 nghĩa là
+   * không có (hoặc replay idempotent không đè) — KHÔNG dùng để trừ điểm.
+   */
+  proctoringViolations?: number;
+}
+
+/**
+ * v1.1 (E2/D16): response GET /exams/:sessionId/questions — trả kèm `progress`
+ * đã autosave (E3) để FE khôi phục grid sau reload + `session.remainingSec`.
+ */
+export interface ExamQuestionsResponse {
+  session: { id: string; remainingSec: number };
+  progress: Array<{ questionId: string; value: AnswerValue }>;
+  items: ExamQuestionItem[];
 }
 
 export interface ExamHistoryItem {
@@ -302,9 +326,11 @@ export interface ProgressOverview {
 
 export interface WeakTopicItem {
   topic: string;
+  /** 0..1 — accuracy của bài/topic (G2: yếu khi < 0.7). */
   accuracy: number;
   attempts: number;
-  recommendedLesson: { id: string; title: string };
+  /** Có thể null nếu lesson đã bị xoá/mất tham chiếu. */
+  recommendedLesson: { id: string; title: string } | null;
 }
 
 export interface TimelineItem {
@@ -362,18 +388,68 @@ export interface RoadmapDetail {
 
 export interface Enrollment {
   id: string;
+  roadmapId: string;
   startedAt: string;
+}
+
+/** GET /roadmaps/me — 1 enrollment kèm roadmap tóm tắt (FE bỏ localStorage). */
+export interface EnrollmentListItem {
+  id: string;
+  roadmapId: string;
+  startedAt: string;
+  roadmap: { id: string; slug: string; title: string; icon?: string | null };
 }
 
 export type MilestoneStatus = "LOCKED" | "AVAILABLE" | "DONE" | "SKIPPED";
 
+/** v1.1 — shape thật của R4 (roadmap.service.getMyProgress). */
 export interface RoadmapProgress {
+  enrollment: {
+    id: string;
+    roadmap: { id: string; slug: string; title: string };
+    startedAt: string;
+  };
   percentCompleted: number;
-  currentStep: number;
-  milestones: Array<{ id: string; status: MilestoneStatus }>;
+  /** ID milestone AVAILABLE hiện tại (string) — null nếu đã hoàn thành hết. */
+  currentStep: string | null;
+  milestones: Array<{ id: string; title: string; order: number; status: MilestoneStatus }>;
 }
 
+/**
+ * v1.1 — shape thật của R5 (roadmap.service.startPlacementTest): session thi
+ * + gợi ý lộ trình theo percent placement gần nhất.
+ */
 export interface PlacementResult {
-  recommendedRoadmap: { id: string; slug: string; title: string };
+  session: ExamSession;
+  recommendedRoadmap: { id: string; slug: string; title: string } | null;
   confidence: number;
+}
+
+/**
+ * Ngưỡng gợi lộ trình theo percent placement (heuristic MVP — không đổi mà
+ * không cập nhật contract): ≥80 → data-scientist, ≥50 → backend, còn lại → frontend.
+ */
+export const PLACEMENT_HIGH_THRESHOLD = 80;
+export const PLACEMENT_MID_THRESHOLD = 50;
+export const PLACEMENT_RECOMMENDATIONS = [
+  { minPercent: PLACEMENT_HIGH_THRESHOLD, slug: "data-scientist", confidence: 0.9 },
+  { minPercent: PLACEMENT_MID_THRESHOLD, slug: "backend", confidence: 0.75 },
+  { minPercent: 0, slug: "frontend", confidence: 0.6 },
+] as const;
+
+// ── Pomodoro (mục 6 / G6, D14) ────────────────────────────────────────
+
+/** Chuỗi focus tối thiểu được tính XP (phút). */
+export const POMODORO_MIN_MINUTES = 25;
+/** Chuỗi focus tối đa server chấp nhận (phút). */
+export const POMODORO_MAX_MINUTES = 60;
+/** Tối đa chuỗi được cộng XP mỗi ngày (chống spam XP). */
+export const POMODORO_MAX_SESSIONS_PER_DAY = 8;
+/** XP mỗi chuỗi focus hợp lệ. */
+export const POMODORO_XP_PER_SESSION = 5;
+
+/** G6 — POST /progress/pomodoro response. */
+export interface PomodoroResult {
+  xpEarned: number;
+  sessionsToday: number;
 }

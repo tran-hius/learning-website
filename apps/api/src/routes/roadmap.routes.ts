@@ -20,5 +20,7 @@ roadmapRouter.get(
   requireAuth,
   asyncHandler(roadmapController.getMyRoadmapProgress),
 );
+// TASK-007 — enrollments của user (trước /:slug để không bị nuốt)
+roadmapRouter.get("/roadmaps/me", requireAuth, asyncHandler(roadmapController.listMyEnrollments));
 // R2 — tree lộ trình (GET, để sau cùng tránh nuốt /me)
 roadmapRouter.get("/roadmaps/:slug", asyncHandler(roadmapController.getRoadmap));

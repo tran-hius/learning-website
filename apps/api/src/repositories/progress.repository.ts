@@ -46,10 +46,21 @@ export interface IProgressRepository {
     userId: string,
     since?: Date,
   ): Promise<{ lessonDays: Date[]; examDays: Date[]; pomodoroDays: Date[] }>;
-  /** G6: đếm số chuỗi pomodoro trong ngày UTC [dayStart, dayEnd). */
-  countPomodorosBetween(userId: string, dayStart: Date, dayEnd: Date): Promise<number>;
-  /** G6: ghi 1 chuỗi focus pomodoro. */
-  createPomodoro(userId: string, minutes: number, completedAt: Date): Promise<void>;
+  /**
+   * F2 (TASK-007): create-then-count trong MỘT transaction — ghi session, đếm
+   * lại (bao gồm session vừa tạo) và cộng XP. Nếu vượt quota → throw để rollback
+   * toàn bộ (không còn race count-then-create cho phép vượt 8 chuỗi/ngày).
+   * Trả về số session sau khi ghi (sessionsToday).
+   */
+  recordPomodoroTransaction(params: {
+    userId: string;
+    minutes: number;
+    completedAt: Date;
+    dayStart: Date;
+    dayEnd: Date;
+    xpPerSession: number;
+    maxPerDay: number;
+  }): Promise<number>;
   /** G5: badges user đã được award (lazy-award) + tìm badge theo name để upsert. */
   listUserBadges(userId: string): Promise<Array<{ name: string; earnedAt: Date }>>;
   awardBadgeByName(userId: string, badgeName: string, earnedAt: Date): Promise<void>;
@@ -166,16 +177,34 @@ export class ProgressRepository implements IProgressRepository {
     };
   }
 
-  async countPomodorosBetween(userId: string, dayStart: Date, dayEnd: Date) {
-    return db.pomodoroSession.count({
-      where: { userId, completedAt: { gte: dayStart, lt: dayEnd } },
-    });
-  }
-
-  async createPomodoro(userId: string, minutes: number, completedAt: Date) {
-    await db.pomodoroSession.create({
-      data: { userId, minutes, completedAt },
-      select: { id: true },
+  async recordPomodoroTransaction(params: {
+    userId: string;
+    minutes: number;
+    completedAt: Date;
+    dayStart: Date;
+    dayEnd: Date;
+    xpPerSession: number;
+    maxPerDay: number;
+  }): Promise<number> {
+    const { userId, minutes, completedAt, dayStart, dayEnd, xpPerSession, maxPerDay } = params;
+    const quotaError = new Error("POMODORO_QUOTA_EXCEEDED");
+    return db.$transaction(async (tx) => {
+      // Create-then-count: count trong cùng transaction, bao gồm session vừa ghi
+      // (F2 — count-then-create cũ có race 2 request song song cùng vượt quota).
+      await tx.pomodoroSession.create({
+        data: { userId, minutes, completedAt },
+        select: { id: true },
+      });
+      const countToday = await tx.pomodoroSession.count({
+        where: { userId, completedAt: { gte: dayStart, lt: dayEnd } },
+      });
+      if (countToday > maxPerDay) throw quotaError;
+      await tx.user.update({
+        where: { id: userId },
+        data: { xp: { increment: xpPerSession }, lastActiveAt: new Date() },
+        select: { id: true },
+      });
+      return countToday;
     });
   }
 

@@ -6,6 +6,7 @@ import {
   POMODORO_XP_PER_SESSION,
   resolveCompletedAt,
   utcDayStart,
+  isPomodoroQuotaExceeded,
 } from "../../src/utils/pomodoro";
 
 /**
@@ -42,5 +43,12 @@ describe("pomodoro constants & helpers (G6/D14)", () => {
     expect(utcDayStart(new Date("2026-11-05T00:00:00.000Z")).toISOString()).toBe(
       "2026-11-05T00:00:00.000Z",
     );
+  });
+
+  // TASK-007 (F2): create-then-count — count da bao gom session vua tao.
+  it("isPomodoroQuotaExceeded: count sau khi tao > MAX moi vuot (dung 8 van cho phep)", () => {
+    expect(isPomodoroQuotaExceeded(POMODORO_MAX_SESSIONS_PER_DAY)).toBe(false);
+    expect(isPomodoroQuotaExceeded(POMODORO_MAX_SESSIONS_PER_DAY + 1)).toBe(true);
+    expect(isPomodoroQuotaExceeded(1)).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { RoadmapRepository } from "../repositories/roadmap.repository";
 import { ProgressRepository } from "../repositories/progress.repository";
 import { ExamService } from "./exam.service";
 import { computeMilestoneStatuses, resolveMilestoneDoneIds } from "../utils/roadmap-logic";
+import { PLACEMENT_RECOMMENDATIONS } from "@learning/shared";
 import type { StartExamInput } from "../validations";
 import type { MilestoneRow } from "../repositories/roadmap.repository";
 
@@ -18,13 +19,8 @@ import type { MilestoneRow } from "../repositories/roadmap.repository";
  * - R5 placement: gợi lộ trình theo accuracy placement GẦN NHẤT đã nộp (percent):
  *   ≥80 → "data-scientist", ≥50 → "backend", <50 → "frontend". Chưa có kết quả
  *   placement nào → gợi ý lộ trình đầu tiên với confidence thấp. Thresholds là
- *   heuristic MVP, không có trong contract.
+ *   hằng số contract ở `@learning/shared` (PLACEMENT_RECOMMENDATIONS — TASK-007).
  */
-const PLACEMENT_THRESHOLDS = [
-  { minPercent: 80, slug: "data-scientist", confidence: 0.9 },
-  { minPercent: 50, slug: "backend", confidence: 0.75 },
-  { minPercent: 0, slug: "frontend", confidence: 0.6 },
-];
 const NO_RESULT_CONFIDENCE = 0.3;
 
 export class RoadmapService {
@@ -75,6 +71,20 @@ export class RoadmapService {
         roadmapId: enrollment.roadmapId,
         startedAt: enrollment.startedAt.toISOString(),
       },
+    };
+  }
+
+  // ── GET /roadmaps/me (TASK-007): enrollments của user — FE bỏ localStorage ──
+
+  async listMyEnrollments(userId: string) {
+    const rows = await this.roadmaps.listEnrollmentsByUser(userId);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        roadmapId: r.roadmapId,
+        startedAt: r.startedAt.toISOString(),
+        roadmap: r.roadmap,
+      })),
     };
   }
 
@@ -170,8 +180,8 @@ export class RoadmapService {
       confidence = NO_RESULT_CONFIDENCE;
     } else {
       const rule =
-        PLACEMENT_THRESHOLDS.find((r) => percent >= r.minPercent) ??
-        PLACEMENT_THRESHOLDS[PLACEMENT_THRESHOLDS.length - 1]!;
+        PLACEMENT_RECOMMENDATIONS.find((r) => percent >= r.minPercent) ??
+        PLACEMENT_RECOMMENDATIONS[PLACEMENT_RECOMMENDATIONS.length - 1]!;
       recommended = await this.roadmaps.findRoadmapByIdOrFallback(rule.slug);
       confidence = rule.confidence;
     }

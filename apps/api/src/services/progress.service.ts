@@ -6,6 +6,7 @@ import {
   POMODORO_MAX_MINUTES,
   POMODORO_MAX_SESSIONS_PER_DAY,
   POMODORO_XP_PER_SESSION,
+  isPomodoroQuotaExceeded,
   resolveCompletedAt,
   utcDayStart,
 } from "../utils/pomodoro";
@@ -243,19 +244,31 @@ export class ProgressService {
     const dayStart = utcDayStart(completedAt);
     const dayEnd = new Date(dayStart.getTime() + 86_400_000);
 
-    // Chống spam XP: tối đa 8 chuỗi/ngày/user (đếm theo ngày UTC — giả định task).
-    const countToday = await this.progress.countPomodorosBetween(userId, dayStart, dayEnd);
-    if (countToday >= POMODORO_MAX_SESSIONS_PER_DAY) {
-      throw new AppError(
-        "RATE_LIMITED",
-        `Pomodoro XP limit reached: max ${POMODORO_MAX_SESSIONS_PER_DAY} sessions per day`,
-        429,
-      );
+    // F2 (TASK-007): create-then-count trong 1 transaction — ghi session + đếm
+    // (bao gồm session vừa tạo) + cộng XP nguyên khối; vượt quota → rollback hết
+    // (không còn race như count-then-create cũ).
+    let sessionsToday: number;
+    try {
+      sessionsToday = await this.progress.recordPomodoroTransaction({
+        userId,
+        minutes,
+        completedAt,
+        dayStart,
+        dayEnd,
+        xpPerSession: POMODORO_XP_PER_SESSION,
+        maxPerDay: POMODORO_MAX_SESSIONS_PER_DAY,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === "POMODORO_QUOTA_EXCEEDED") {
+        throw new AppError(
+          "RATE_LIMITED",
+          `Pomodoro XP limit reached: max ${POMODORO_MAX_SESSIONS_PER_DAY} sessions per day`,
+          429,
+        );
+      }
+      throw err;
     }
-
-    await this.progress.createPomodoro(userId, minutes, completedAt);
-    await this.progress.addXp(userId, POMODORO_XP_PER_SESSION);
-    return { xpEarned: POMODORO_XP_PER_SESSION, sessionsToday: countToday + 1 };
+    return { xpEarned: POMODORO_XP_PER_SESSION, sessionsToday };
   }
 }
 

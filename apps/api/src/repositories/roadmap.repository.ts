@@ -40,6 +40,13 @@ export interface IRoadmapRepository {
   /** R5: tìm roadmap theo slug, không có → fallback roadmap đầu tiên. */
   findRoadmapByIdOrFallback(slug: string): Promise<{ id: string; slug: string; title: string } | null>;
   upsertEnrollment(userId: string, roadmapId: string): Promise<EnrollmentRow>;
+  /** GET /roadmaps/me (TASK-007): enrollments của user kèm roadmap tóm tắt. */
+  listEnrollmentsByUser(userId: string): Promise<Array<{
+    id: string;
+    roadmapId: string;
+    startedAt: Date;
+    roadmap: { id: string; slug: string; title: string; icon: string | null };
+  }>>;
   findEnrollmentById(id: string): Promise<(EnrollmentRow & { roadmap: { id: string; slug: string; title: string; milestones: MilestoneRow[] } }) | null>;
   /** examBankId user đã SUBMITTED (đủ để xét milestone có exam — R4). */
   listSubmittedExamBankIds(userId: string, examBankIds: string[]): Promise<string[]>;
@@ -131,6 +138,20 @@ export class RoadmapRepository implements IRoadmapRepository {
       create: { userId, roadmapId },
       select: { id: true, userId: true, roadmapId: true, startedAt: true, currentStep: true },
     });
+  }
+
+  async listEnrollmentsByUser(userId: string) {
+    const rows = await db.roadmapEnrollment.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        roadmapId: true,
+        startedAt: true,
+        roadmap: { select: { id: true, slug: true, title: true, icon: true } },
+      },
+      orderBy: { startedAt: "desc" },
+    });
+    return rows;
   }
 
   async findEnrollmentById(id: string) {
