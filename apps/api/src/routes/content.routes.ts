@@ -14,18 +14,24 @@ export const contentRouter = Router();
 contentRouter.get("/subjects", asyncHandler(contentController.listSubjects));
 // S2 🔓
 contentRouter.get("/subjects/:slug", asyncHandler(contentController.getSubject));
-// S3 — đăng nhập
+// S3 — đăng nhập (D12: giữ requireAuth)
 contentRouter.get(
   "/subjects/:slug/chapters/:chapterId",
   requireAuth,
   asyncHandler(contentController.getChapter),
 );
 
-// L2 phải đăng ký TRƯỚC /lessons/:lessonId để không bị nuốt bởi param route.
+// L2 phải đăng ký TRƯỚC /lessons/:lessonId để không bị nuốt bởi param route (D12: giữ requireAuth).
 contentRouter.get("/lessons/up-next", requireAuth, asyncHandler(contentController.upNextLesson));
-// S4 — đăng nhập, câu hỏi ẩn đáp án
+// D10: by-slug phải đăng ký TRƯỚC /lessons/:lessonId (reason như L2).
+contentRouter.get(
+  "/lessons/by-slug/:slug",
+  requireAuth, // D12 — giữ requireAuth như S4
+  asyncHandler(contentController.getLessonBySlug),
+);
+// S4 — đăng nhập, câu hỏi ẩn đáp án (D12: giữ requireAuth)
 contentRouter.get("/lessons/:lessonId", requireAuth, asyncHandler(contentController.getLesson));
-// L1 — +XP
+// L1 — +XP (D12: giữ requireAuth)
 contentRouter.post(
   "/lessons/:lessonId/complete",
   requireAuth,

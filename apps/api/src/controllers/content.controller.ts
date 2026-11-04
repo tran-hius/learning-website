@@ -30,28 +30,35 @@ export const getSubject = asyncHandler(async (req, res) => {
   sendOk(res, await contentService.getSubjectBySlug(slug));
 });
 
-/** S3: GET /subjects/:slug/chapters/:chapterId */
+/** S3: GET /subjects/:slug/chapters/:chapterId (D12: giữ requireAuth) */
 export const getChapter = asyncHandler(async (req, res) => {
   const { userId } = requireAuthContext(req);
   const { slug, chapterId } = chapterParamSchema.parse(req.params);
   sendOk(res, await contentService.getChapter(slug, chapterId, userId));
 });
 
-/** S4: GET /lessons/:lessonId — câu hỏi ẨN đáp án. */
+/** S4: GET /lessons/:lessonId — câu hỏi ẨN đáp án (D12: giữ requireAuth). */
 export const getLesson = asyncHandler(async (req, res) => {
   requireAuthContext(req);
   const { lessonId } = lessonParamSchema.parse(req.params);
   sendOk(res, await contentService.getLesson(lessonId));
 });
 
-/** L1: POST /lessons/:lessonId/complete — +XP 10. */
+/** D10: GET /lessons/by-slug/:slug — như S4 nhưng tra theo slug toàn cục. */
+export const getLessonBySlug = asyncHandler(async (req, res) => {
+  requireAuthContext(req); // D12 — giữ requireAuth như S4
+  const { slug } = subjectSlugParamSchema.parse(req.params);
+  sendOk(res, await contentService.getLessonBySlug(slug));
+});
+
+/** L1: POST /lessons/:lessonId/complete — +XP 10 (D12: giữ requireAuth). */
 export const completeLesson = asyncHandler(async (req, res) => {
   const { userId } = requireAuthContext(req);
   const { lessonId } = lessonParamSchema.parse(req.params);
   sendOk(res, await contentService.completeLesson(userId, lessonId), 201);
 });
 
-/** L2: GET /lessons/up-next — gợi ý bài tiếp theo. */
+/** L2: GET /lessons/up-next — gợi ý bài tiếp theo (D12: giữ requireAuth). */
 export const upNextLesson = asyncHandler(async (req, res) => {
   const { userId } = requireAuthContext(req);
   sendOk(res, await contentService.upNext(userId));
@@ -62,6 +69,7 @@ export const contentController = {
   getSubject,
   getChapter,
   getLesson,
+  getLessonBySlug,
   completeLesson,
   upNextLesson,
 };

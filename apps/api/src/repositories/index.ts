@@ -19,4 +19,6 @@ export type {
 } from "./content.repository";
 export { ProgressRepository } from "./progress.repository";
 export type { IProgressRepository, LessonProgressRow } from "./progress.repository";
+export { EnglishRepository } from "./english.repository";
+export type { IEnglishRepository, SpeakingAttemptRow } from "./english.repository";
 export type { IBaseRepository } from "./interfaces";

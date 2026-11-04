@@ -53,10 +53,11 @@ export class AdminService {
     return { subject };
   }
 
-  /** C3: POST /admin/subjects/:id/chapters. */
+  /** C3: POST /admin/subjects/:id/chapters — invalidate cache S1 (điều kiện reviewer TASK-003). */
   async createChapter(subjectId: string, input: CreateChapterInput): Promise<{ chapter: ChapterBriefRow }> {
     await this.assertSubjectExists(subjectId);
     const chapter = await this.content.createChapter(subjectId, input);
+    await cacheDel("subjects:list:v1");
     return { chapter };
   }
 
@@ -182,6 +183,13 @@ export class AdminService {
     if (input.practiceSetId) {
       await this.assertPracticeSetExists(input.practiceSetId);
     }
-    // examBankId được kiểm tra tồn tại ở tầng DB (FK) — C11/C9 MVP chấp nhận.
+    // Điều kiện final-reviewer TASK-003 (C9/C11): validate examBankId tồn tại
+    // TRƯỚC insert (query 1 lần) — lỗi → 400, code NOT_FOUND style.
+    if (input.examBankId) {
+      const bank = await this.content.findExamBankById(input.examBankId);
+      if (!bank) {
+        throw new AppError("NOT_FOUND", "Exam bank not found", 400);
+      }
+    }
   }
 }

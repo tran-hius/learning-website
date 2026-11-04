@@ -10,10 +10,10 @@ import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 
 type SeedQuestion = {
-  type: "MCQ_SINGLE" | "MCQ_MULTI";
+  type: "MCQ_SINGLE" | "MCQ_MULTI" | "FILL_ANSWER" | "MATCH_PAIRS" | "LISTEN_MCQ";
   stem: string;
   options: Array<{ id: string; content: string }>;
-  answer: { correctOptionIds: string[] };
+  answer: { correctOptionIds?: string[]; correctText?: string };
   explanation: string;
   thinkingHints: string[];
 };
@@ -53,7 +53,12 @@ async function upsertLesson(
   });
 }
 
-async function findOrCreatePracticeSet(lessonId: string, mode: "QUIZ", order: number, questions: SeedQuestion[]) {
+async function findOrCreatePracticeSet(
+  lessonId: string,
+  mode: "QUIZ" | "CODING" | "LISTENING",
+  order: number,
+  questions: SeedQuestion[],
+) {
   const existing = await db.practiceSet.findFirst({
     where: { lessonId, order },
     include: { questions: { select: { id: true } } },
@@ -233,8 +238,65 @@ async function main() {
     },
   ]);
 
+  // ── TASK-004: 1 practice set Python (CODING) + 1 set listening (LISTENING) ──
+  await findOrCreatePracticeSet(l2.id, "CODING", 2, [
+    {
+      type: "FILL_ANSWER",
+      stem: "Đoạn code `print(2 + 3)` in ra màn hình giá trị nào?",
+      options: [],
+      answer: { correctText: "5" },
+      explanation: "Hàm print() in kết quả của biểu thức 2 + 3 = 5.",
+      thinkingHints: ["Tính giá trị biểu thức bên trong print()."],
+    },
+  ]);
+  // Payload CODING: frontend dùng làm starter code cho /python/exec (P3).
+  const codingSet = await db.practiceSet.findFirst({ where: { lessonId: l2.id, mode: "CODING" } });
+  if (codingSet && !codingSet.payload) {
+    await db.practiceSet.update({
+      where: { id: codingSet.id },
+      data: {
+        payload: {
+          language: "python",
+          version: "3.10.0",
+          starterCode: "# Viết code Python của bạn ở đây\nprint(2 + 3)",
+        },
+      },
+    });
+  }
+
+  await findOrCreatePracticeSet(le2.id, "LISTENING", 2, [
+    {
+      type: "LISTEN_MCQ",
+      stem: "Listen to the audio. What does the speaker say?",
+      options: [
+        { id: "opt_a", content: "I like reading books." },
+        { id: "opt_b", content: "I like reading footballs." },
+        { id: "opt_c", content: "I like riding bikes." },
+      ],
+      answer: { correctOptionIds: ["opt_a"] },
+      explanation: "The speaker says: 'I like reading books.'",
+      thinkingHints: ["Focus on the object after 'reading'."],
+    },
+  ]);
+  const listeningSet = await db.practiceSet.findFirst({
+    where: { lessonId: le2.id, mode: "LISTENING" },
+  });
+  if (listeningSet && !listeningSet.payload) {
+    await db.practiceSet.update({
+      where: { id: listeningSet.id },
+      data: {
+        payload: {
+          title: "Free-time activities",
+          audioUrl: "https://res.cloudinary.com/demo/video/upload/v1/sample-listening-free-time.mp3",
+          transcript: "Hi everyone! In my free time, I like reading books and listening to music.",
+          lockedUntilSubmit: true,
+        },
+      },
+    });
+  }
+
   console.log(
-    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=4, questions=${await db.questionItem.count()}`,
+    `Seed OK: subjects=2, chapters=2, lessons=4, practiceSets=${await db.practiceSet.count()}, questions=${await db.questionItem.count()}`,
   );
 }
 

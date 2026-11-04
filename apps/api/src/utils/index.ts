@@ -4,7 +4,7 @@ export { logger } from "./logger";
 export { AppError } from "./errors";
 export { asyncHandler } from "./async-handler";
 export { hashPassword, verifyPassword } from "./password";
-export { cacheGet, cacheSet, cacheDel, cacheClose } from "./cache";
+export { cacheGet, cacheSet, cacheDel, cacheClose, hitRateLimit } from "./cache";
 export {
   serializeQuestionForStudent,
   serializeQuestionsForStudent,

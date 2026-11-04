@@ -51,3 +51,17 @@ export type {
   UpdateQuestionInput,
   BulkQuestionsInput,
 } from "./content.schema";
+export {
+  practiceAttemptSchema,
+  hintBodySchema,
+  pythonExecSchema,
+  questionIdParamSchema,
+  practiceSetIdParamSchema,
+} from "./practice.schema";
+export type {
+  PracticeAttemptInput,
+  HintBodyInput,
+  PythonExecInput,
+} from "./practice.schema";
+export { speakingAttemptBodySchema, listeningResourceParamSchema } from "./english.schema";
+export type { SpeakingAttemptBodyInput } from "./english.schema";

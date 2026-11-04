@@ -26,6 +26,8 @@ const baseShape = {
   GOOGLE_CLIENT_SECRET: z.string().default(""),
   GITHUB_CLIENT_ID: z.string().default(""),
   GITHUB_CLIENT_SECRET: z.string().default(""),
+  /** TASK-004 (P3): URL Piston API — có thể đổi sang instance self-host/whitelist. */
+  PISTON_URL: z.string().url().default("https://emkc.org/api/v2/piston/execute"),
 };
 
 /**

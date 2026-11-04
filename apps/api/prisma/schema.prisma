@@ -44,6 +44,22 @@ model User {
   badges           UserBadge[]
   enrollments      RoadmapEnrollment[]
   refreshTokens    RefreshToken[]
+  speakingAttempts SpeakingAttempt[]
+}
+
+/// TASK-004 (S_E1): bản ghi lượt nói của user — MVP chỉ lưu audio +
+/// prompt, chấm AI để Phase 2 (contract mục 10).
+model SpeakingAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  prompt        String
+  audioUrl      String
+  modelAudioUrl String
+  selfScore     Int?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 /// Lưu SHA-256 hash của refresh token để có thể thu hồi / xoay vòng.

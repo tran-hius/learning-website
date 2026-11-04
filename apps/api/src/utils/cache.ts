@@ -12,6 +12,8 @@ type RedisLike = {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, mode: "EX", ttl: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
+  incr(key: string): Promise<number>;
+  expire(key: string, ttl: number): Promise<unknown>;
   quit(): Promise<unknown>;
 };
 
@@ -82,6 +84,32 @@ export async function cacheDel(key: string): Promise<void> {
     await c.del(key);
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Rate limit best-effort bằng Redis INCR + TTL (TASK-004, P3).
+ * - Redis sống: trả count trong cửa sổ `windowSec`; caller quyết định cho qua hay từ chối.
+ * - Redis chết / không có: trả `{ allowed: true, remaining: null }` và log warn MỘT lần
+ *   (best-effort như toàn bộ cache.ts — rate limit không được phép làm sập API).
+ */
+export async function hitRateLimit(
+  key: string,
+  limit: number,
+  windowSec: number,
+): Promise<{ allowed: boolean; remaining: number | null }> {
+  try {
+    const c = await getClient();
+    if (!c) return { allowed: true, remaining: null };
+    const count = await c.incr(key);
+    if (count === 1) {
+      await c.expire(key, windowSec);
+    }
+    const remaining = Math.max(0, limit - count);
+    return { allowed: count <= limit, remaining };
+  } catch (err) {
+    logger.warn({ err }, "Rate limit check failed — allowing request (best-effort)");
+    return { allowed: true, remaining: null };
   }
 }
 

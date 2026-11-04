@@ -81,6 +81,7 @@ export interface IContentRepository {
   updateChapter(id: string, data: { title?: string; order?: number }): Promise<ChapterBriefRow>;
   listPublishedLessonsByChapter(chapterId: string): Promise<LessonBriefRow[]>;
   findLessonById(id: string): Promise<LessonFullRow | null>;
+  findLessonBySlug(slug: string): Promise<LessonFullRow | null>;
   createLesson(chapterId: string, data: Record<string, unknown>): Promise<{ id: string; slug: string; title: string; order: number; status: string }>;
   updateLesson(id: string, data: Record<string, unknown>): Promise<{ id: string; slug: string; title: string; order: number; status: string }>;
   createPracticeSet(lessonId: string, data: { mode: string; payload?: unknown; order?: number }, questions?: Record<string, unknown>[]): Promise<PracticeSetRow>;
@@ -94,6 +95,8 @@ export interface IContentRepository {
     (LessonBriefRow & { chapter: { title: string; subject: { slug: string; name: string } } }) | null
   >;
   findPracticeSetById(id: string): Promise<PracticeSetRow | null>;
+  findQuestionById(id: string): Promise<QuestionRow | null>;
+  findExamBankById(id: string): Promise<{ id: string; name: string } | null>;
   questionExists(id: string): Promise<boolean>;
 }
 
@@ -126,6 +129,39 @@ const lessonBriefSelect = {
   title: true,
   estimatedMinutes: true,
   order: true,
+} satisfies Prisma.LessonSelect;
+
+/** Select đầy đủ cho S4 / D10 by-slug (nội dung + practiceSets + questions). */
+const lessonFullSelect = {
+  id: true,
+  chapterId: true,
+  slug: true,
+  title: true,
+  content: true,
+  media: true,
+  estimatedMinutes: true,
+  thinkingSection: true,
+  order: true,
+  status: true,
+  chapter: {
+    select: {
+      id: true,
+      title: true,
+      order: true,
+      subject: { select: { id: true, slug: true, name: true } },
+    },
+  },
+  practiceSets: {
+    select: {
+      id: true,
+      lessonId: true,
+      mode: true,
+      payload: true,
+      order: true,
+      questions: { select: questionSelect, orderBy: { id: "asc" } },
+    },
+    orderBy: { order: "asc" },
+  },
 } satisfies Prisma.LessonSelect;
 
 export class ContentRepository implements IContentRepository {
@@ -203,40 +239,16 @@ export class ContentRepository implements IContentRepository {
   async findLessonById(id: string): Promise<LessonFullRow | null> {
     return db.lesson.findUnique({
       where: { id },
-      select: {
-        id: true,
-        chapterId: true,
-        slug: true,
-        title: true,
-        content: true,
-        media: true,
-        estimatedMinutes: true,
-        thinkingSection: true,
-        order: true,
-        status: true,
-        chapter: {
-          select: {
-            id: true,
-            title: true,
-            order: true,
-            subject: { select: { id: true, slug: true, name: true } },
-          },
-        },
-        practiceSets: {
-          select: {
-            id: true,
-            lessonId: true,
-            mode: true,
-            payload: true,
-            order: true,
-            questions: {
-              select: questionSelect,
-              orderBy: { id: "asc" },
-            },
-          },
-          orderBy: { order: "asc" },
-        },
-      },
+      select: lessonFullSelect,
+    });
+  }
+
+  async findLessonBySlug(slug: string): Promise<LessonFullRow | null> {
+    // slug chỉ unique theo (chapterId, slug) — by-slug toàn cục dùng findFirst (D10).
+    return db.lesson.findFirst({
+      where: { slug, status: "PUBLISHED" },
+      select: lessonFullSelect,
+      orderBy: { order: "asc" },
     });
   }
 
@@ -362,6 +374,14 @@ export class ContentRepository implements IContentRepository {
         questions: { select: questionSelect, orderBy: { id: "asc" } },
       },
     });
+  }
+
+  async findQuestionById(id: string): Promise<QuestionRow | null> {
+    return db.questionItem.findUnique({ where: { id }, select: questionSelect });
+  }
+
+  async findExamBankById(id: string): Promise<{ id: string; name: string } | null> {
+    return db.examBank.findUnique({ where: { id }, select: { id: true, name: true } });
   }
 
   async questionExists(id: string): Promise<boolean> {

@@ -76,13 +76,19 @@ export class ContentService {
     };
   }
 
-  /**
-   * S4: GET /lessons/:lessonId — nội dung bài (Markdown) + media + practiceSets
-   * với câu hỏi ĐÃ ẨN đáp án (serialize không trả answer/explanation/thinkingHints[1..]).
-   */
+  /** S4 — đăng nhập, câu hỏi ẩn đáp án (D12: giữ requireAuth). */
   async getLesson(lessonId: string) {
     const lesson = await this.content.findLessonById(lessonId);
     if (!lesson || lesson.status !== "PUBLISHED") {
+      throw new AppError("NOT_FOUND", "Lesson not found", 404);
+    }
+    return this.toLessonPayload(lesson);
+  }
+
+  /** D10: GET /lessons/by-slug/:slug — Lesson content + practiceSets như S4 (D12: requireAuth). */
+  async getLessonBySlug(slug: string) {
+    const lesson = await this.content.findLessonBySlug(slug);
+    if (!lesson) {
       throw new AppError("NOT_FOUND", "Lesson not found", 404);
     }
     return this.toLessonPayload(lesson);
