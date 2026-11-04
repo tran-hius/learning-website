@@ -123,8 +123,8 @@ export function PracticeSection({
             },
           );
         } catch (err) {
-          // P1 chưa chạy (backend mới có S1–S4) → rơi về chấm local demo
-          // nếu có dữ liệu demo; không có thì báo lỗi, không bịa điểm.
+          // P1 đã mount (TASK-004) — API 200 ưu tiên; lỗi (chưa đăng nhập, server
+          // dừng...) → rơi về chấm local demo nếu có dữ liệu demo, không bịa điểm.
           if (questions.every((q) => demoQuestions[q.id])) {
             attempt = gradeDemo(answers, demoQuestions) as PracticeAttemptResult;
             setError(`Server chấm bài chưa chạy (${friendlyApiMessage(err)}) — tạm chấm bằng dữ liệu demo.`);
@@ -243,10 +243,10 @@ export function PracticeSection({
             Nộp bài
           </Button>
         ) : null}
-        {attempt && percent >= 70 ? (
+        {attempt ? (
           <Button size="lg" onClick={handleComplete} disabled={completed || completeLoading}>
             {completeLoading ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
-            {completed ? "Đã hoàn thành ✓" : "Hoàn thành bài (+10 XP)"}
+            {completed ? "Đã hoàn thành ✓" : "Hoàn thành bài"}
           </Button>
         ) : null}
         {nextLesson ? (
@@ -266,10 +266,18 @@ export function PracticeSection({
         </p>
       ) : null}
       {completed ? (
-        <p className="flex items-center gap-2 rounded-[12px] bg-mint-100 px-4 py-3 text-sm font-medium text-mint-600 animate-pop-in">
-          <Check className="size-4 animate-bounce-once" aria-hidden />
-          Ghi nhận rồi nè — +10 XP vào ví streak của bạn! 🎉
-        </p>
+        isDemo ? (
+          // D9: demo text trung thực — không hứa +10 XP khi chưa kết nối server.
+          <p className="flex items-center gap-2 rounded-[12px] bg-mint-100 px-4 py-3 text-sm font-medium text-mint-600 animate-pop-in">
+            <Check className="size-4 animate-bounce-once" aria-hidden />
+            Hoàn thành bài! XP sẽ được ghi khi kết nối máy chủ
+          </p>
+        ) : (
+          <p className="flex items-center gap-2 rounded-[12px] bg-mint-100 px-4 py-3 text-sm font-medium text-mint-600 animate-pop-in">
+            <Check className="size-4 animate-bounce-once" aria-hidden />
+            Ghi nhận rồi nè — +10 XP vào ví streak của bạn! 🎉
+          </p>
+        )
       ) : null}
 
       {showCelebration && attempt ? (

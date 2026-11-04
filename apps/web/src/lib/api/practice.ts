@@ -4,7 +4,14 @@
  * → mọi call sẽ lỗi NETWORK/404; UI bắt lỗi và rơi về chấm local demo mode.
  */
 import { apiFetch } from "./client";
-import type { AnswerValue, HintResult, PracticeAttemptInput, PracticeAttemptResult } from "./types";
+import type {
+  AnswerValue,
+  HintResult,
+  PracticeAttemptInput,
+  PracticeAttemptResult,
+  PythonExecInput,
+  PythonExecResult,
+} from "./types";
 
 /** P1 — POST /practice/:setId/attempt (server chấm, trả đáp án + giải thích). */
 export function submitPracticeAttempt(
@@ -22,6 +29,14 @@ export function getHint(questionId: string, level: 1 | 2): Promise<HintResult> {
   return apiFetch<HintResult>("/practice/hints/" + encodeURIComponent(questionId), {
     method: "POST",
     body: { level },
+  });
+}
+
+/** P3 — POST /python/exec — chạy code Python qua Piston (rate limit 10 req/phút). */
+export function execPython(input: PythonExecInput): Promise<PythonExecResult> {
+  return apiFetch<PythonExecResult>("/python/exec", {
+    method: "POST",
+    body: input,
   });
 }
 
