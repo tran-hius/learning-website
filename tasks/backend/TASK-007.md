@@ -3,7 +3,7 @@
 - **Agent thực thi:** backend-developer
 - **Phạm vi đường dẫn cho phép:** `packages/shared/src/**`, `apps/api/src/**`, `apps/api/prisma/**`, root config liên quan deploy (`README.md`, `.env.example`, `apps/api/package.json`)
 - **Task gốc từ kế hoạch:** Ngày 7 — polish + chuẩn bị deploy; điều kiện final-reviewer TASK-006
-- **Trạng thái:** DONE_PRIVATE (commit `43534c2` — đã push origin/main)
+- **Trạng thái:** DONE — final-reviewer: APPROVED (hotfix `3ca3bb0` sửa F-R2/R3/R4; còn tồn: F-R5 docs v1.1, shared typecheck script, race backlog) — commit `43534c2` + hotfix `3ca3bb0`
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-006
 1. **SHARED (chính):** đồng bộ packages/shared theo 6 nhóm FE đang định nghĩa tay (risk drift):

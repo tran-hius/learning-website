@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 7 — polish + deploy prep
-- **Trạng thái:** DONE_PRIVATE (commit a233a78 — hash ngắn, push lên origin/main)
+- **Trạng thái:** DONE — final-reviewer: APPROVED (hotfix `1ddab52` sửa F-R1; còn tồn F-R6 nhỏ) — commit `a233a78` + hotfix `1ddab52`
 - **PHỤ THUỘC:** TASK-007 (backend) phải DONE_PRIVATE trước — shared types đã đồng bộ. Nếu chưa, làm mục 2–4 trước, mục 1 cuối.
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-006
