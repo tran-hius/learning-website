@@ -3,7 +3,7 @@
 - **Agent thực thi:** backend-developer
 - **Phạm vi đường dẫn cho phép:** `src/server/**`, `prisma/**`, root config (`package.json`, `tsconfig.json`, `.env.example`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.ts`, `src/lib/db.ts`)
 - **Task gốc từ kế hoạch:** Ngày 1 — Nền móng (config, schema DB, logger, error handler)
-- **Trạng thái:** DONE_PRIVATE
+- **Trạng thái:** DONE (APPROVED by final-reviewer, commit d5d96c6 trở đi; điều kiện bắt buộc chuyển vào TASK-002)
 
 ## Mô tả công việc
 Khoi tao Next.js + TypeScript project trong repo này (nếu chưa có) với Tailwind + ESLint, va cau hinh cac thanhphan backend sau.

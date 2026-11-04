@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `src/app/**`, `src/components/**`, `src/lib/**`, `src/styles/**`
 - **Task gốc từ kế hoạch:** Ngày 1 — Nền móng (UI shell + API client)
-- **Trạng thái:** GIT_PUSH
+- **Trạng thái:** DONE (APPROVED by final-reviewer; điều kiện bắt buộc chuyển vào TASK-002-FR)
 
 ## Câu hỏi cho manager
 (không có blocker — mọi quyết định đều theo docs/ui-design-guide.md + api-contract.md; duy nhất 1 lựa chọn nội dung nhỏ: tên thương hiệu tạm trên logo là "HọcNè", manager/user có thể đổi nếu muốn.)
@@ -33,4 +33,5 @@ Xây UI shell ứng dụng và tầng typed API client dựa trên `docs/api-con
 - Sau commit → push `origin main` (merge theo thứ tự, tránh conflict — nếu conflict với TASK-001 backend thì pull --rebase trước).
 
 ## Ghi chú của reviewer
-(điền sau review)
+- code-reviewer cấp 1: PASS_W_WARNINGS (2 🟠 env-default fail-fast + commit d5d96c6 trộn vai trò; 4 🟡 UI/housekeeping)
+- final-reviewer cấp 2: APPROVED kèm điều kiện — (1) config/app.ts bỏ .default() cho AUTH_SECRET/DATABASE_URL/REDIS_URL + guard production, (2) kỷ luật commit 1 agent = 1 commit = 1 phạm vi từ TASK-002, (3) giải quyết trùng lặp types web vs shared (chờ user chốt hướng), (4) sửa task file/comment touch-target, (5) brand name "HọcNè" chờ user chốt
