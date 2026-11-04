@@ -33,13 +33,26 @@ final-reviewer (cấp 2) ──REJECTED──> quay lại Dev Agent sửa
 Manager cập nhật task → DONE, báo cáo người dùng
 ```
 
-## 3. Cấm kỵ (vi phạm =(review bị reject ngay)
+## 3. Cấm kỵ (vi phạm sẽ bị reject ngay)
 1. Agent code KHÔNG được đọc `KE-HOACH.md` hay task file của agent khác.
 2. Agent không đụng file ngoài phạm vi vai trò (khác cả đọc).
 3. Reviewer không tự sửa code — chỉ báo cáo.
 4. Manager không tự viết code trong `src/**`.
 5. Task file phải ghi rõ: phạm vi đường dẫn cho phép, Definition of Done, trước khi giao.
 6. Báo cáo phải cụ thể: file nào đã tạo/sửa, test/kiểm chứng gì đã chạy.
+
+## 3.1 QUY TẮC SỐ 0 — KHÔNG TỰ SUY DIỄN (áp dụng cho MỌI agent, ưu tiên cao nhất)
+Khi gặp thông tin **chưa được xác định hoặc chưa được xác thực** trong task/kế hoạch, agent **BẮT BUỘC hỏi** thay vì tự quyết:
+1. **Chưa xác định FRAMEWORK** (backend/frontend/thư viện/ORM/CLI... chưa ghi rõ trong task hoặc contract) → HỎI, không tự chọn.
+2. **Chưa xác định CẤU TRÚC** (vị trí file, thư mục, kiến trúc tầng, naming) → HỎI, không tự đặt.
+3. **Chưa xác định PHƯƠNG THỨC** (cách gọi API, luồng dữ liệu, cơ chế auth, strategy cache/deploy...) → HỎI, không tự nghĩ ra.
+4. **Thông tin chưa được xác thực** (từ bộ nhớ cũ, dự đoán, "thường thì...") → KHÔNG ĐƯỢC biến thành quyết định kỹ thuật. Chỉ dùng nguồn có thật trong repo: `docs/api-contract.md`, `docs/ui-design-guide.md`, `AGENTS.md`, task file, code hiện có.
+
+Cách hỏi đúng quy trình:
+- Dev agent đặt trạng thái task = `BLOCKED`, ghi vào task file mục "Câu hỏi cho manager" với các lựa chọn đề xuất (kèm ưu/nhược ngắn) rồi dừng, KHÔNG code phần chưa chắc chắn.
+- Manager trả lời trong task file (mục "Quyết định của manager") hoặc hỏi lại người dùng nếu ngoài phạm vi kế hoạch — sau đó chuyển task về `TODO` để dev tiếp tục.
+- Mọi quyết định kỹ thuật mới (framework/thư viện/cấu trúc/phương thức) phải được ghi lại vào task file hoặc docs để các agent sau dùng theo, tránh quyết 1 lần ở 2 nơi khác nhau.
+- Nếu không hỏi được (chạy batch tự động), agent phải dừng ở trạng thái BLOCKED — tuyệt đối KHÔNG "chọn đại rồi chạy tiếp".
 
 ## 4. Trạng thái task
 `TODO → IN_PROGRESS → DONE_PRIVATE (dev xong) → TESTING → GIT_PUSH → REVIEWING → DONE / BLOCKED`
