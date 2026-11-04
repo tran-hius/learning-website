@@ -75,8 +75,7 @@ function demoToView(slug: string): LessonView | null {
 export default async function LessonPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // LƯU Ý contract: S4 nhận lessonId — truyền slug thẳng, 404 → demo (câu hỏi
-  // cho manager về endpoint tra slug→id đã ghi trong task file).
+  // S4/D10 — GET /lessons/by-slug/:slug (backend TASK-004 đã mount).
   const remote = await getLessonServer(slug);
 
   const view: LessonView | null = remote

@@ -6,7 +6,6 @@ import type {
   ExamQuestionItem,
   ExamResult,
   ExamSession,
-  Paginated,
   PracticeAttemptInput,
   PracticeAttemptResult,
   PythonExecInput,
@@ -44,16 +43,9 @@ export function submitExam(sessionId: string, input: SubmitExamInput): Promise<E
   });
 }
 
-/** E5 — Lịch sử thi */
-export function getExamHistory(query?: {
-  page?: number;
-  limit?: number;
-}): Promise<Paginated<ExamHistoryItem>> {
-  const params = new URLSearchParams();
-  if (query?.page) params.set("page", String(query.page));
-  if (query?.limit) params.set("limit", String(query.limit));
-  const qs = params.toString();
-  return apiFetch(`/exams/history${qs ? `?${qs}` : ""}`);
+/** E5 — Lịch sử thi (backend trả `{ items }`, không phân trang — exam.repository listHistory). */
+export function getExamHistory(): Promise<{ items: ExamHistoryItem[] }> {
+  return apiFetch("/exams/history");
 }
 
 /** E6 — Chi tiết 1 lần thi đã nộp */

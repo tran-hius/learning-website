@@ -115,14 +115,13 @@ export async function getChapterLessonsServer(
 }
 
 /**
- * S4 — GET /lessons/:lessonId. LƯU Ý contract: endpoint nhận **lessonId**,
- * chưa có endpoint tra slug→id (đã ghi câu hỏi cho manager trong task file).
- * Thử truyền slug thẳng — nếu backend 404 thì trang rơi vào demo mode.
+ * S4/D10 — GET /lessons/by-slug/:slug (contract mục 3.2, backend TASK-004 đã mount).
+ * Trả null khi API lỗi → trang bài học rơi demo mode.
  */
-export async function getLessonServer(idOrSlug: string): Promise<LessonRow | null> {
+export async function getLessonServer(slug: string): Promise<LessonRow | null> {
   try {
     return await apiFetchServer<LessonRow>(
-      `/lessons/${encodeURIComponent(idOrSlug)}`,
+      `/lessons/by-slug/${encodeURIComponent(slug)}`,
       { headers: await cookieHeader() },
     );
   } catch {

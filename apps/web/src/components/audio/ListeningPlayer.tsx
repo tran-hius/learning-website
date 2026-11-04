@@ -180,6 +180,12 @@ export function ListeningPlayer({ setId, isDemo, fallback }: ListeningPlayerProp
           </p>
         ) : null}
 
+        {loadError && audioUrl ? (
+          <p role="alert" className="rounded-[12px] bg-coral-50 px-4 py-3 text-sm text-coral-600">
+            {loadError}
+          </p>
+        ) : null}
+
         <audio
           ref={audioRef}
           src={audioUrl}
@@ -190,6 +196,9 @@ export function ListeningPlayer({ setId, isDemo, fallback }: ListeningPlayerProp
           onEnded={() => setPlaying(false)}
           onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+          onError={() =>
+            setLoadError("Không phát được audio, thử tải lại nhé 🎧")
+          }
         />
 
         {/* Hàng điều khiển: play + tua ±5s + loop */}
@@ -235,7 +244,7 @@ export function ListeningPlayer({ setId, isDemo, fallback }: ListeningPlayerProp
               onClick={() => setRate(s)}
               aria-pressed={rate === s}
               className={cn(
-                "min-h-[36px] min-w-[48px] rounded-[10px] px-2 text-sm font-semibold transition-colors duration-200 ease-out",
+                "min-h-[44px] min-w-[48px] rounded-[10px] px-2 text-sm font-semibold transition-colors duration-200 ease-out",
                 rate === s
                   ? "bg-sky-500 text-white"
                   : "bg-cream-deep text-ink-700 hover:text-ink-900",
@@ -279,7 +288,6 @@ export function ListeningPlayer({ setId, isDemo, fallback }: ListeningPlayerProp
             ) : null}
             {setId && !isDemo ? (
               <Button
-                size="sm"
                 onClick={handleSubmitAnswers}
                 disabled={!answeredAll || submitting}
                 className="self-start bg-sky-500 hover:bg-sky-600"

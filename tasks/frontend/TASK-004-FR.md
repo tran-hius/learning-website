@@ -21,9 +21,9 @@
 5. Micro-interaction giữ 150–250ms; giữ checklist chống AI look.
 
 ## Definition of Done
-- [ ] lint + build pass
-- [ ] 3 component mới hoạt động (audio speed thật sự đổi playbackRate; recorder xin quyền mic có fallback lỗi thân thiện; editor chạy P3 hoặc demo fallback trung thực)
-- [ ] Gate đã bỏ, demo text trung tính
+- [x] lint + build pass
+- [x] 3 component mới hoạt động (audio speed thật sự đổi playbackRate; recorder xin quyền mic có fallback lỗi thân thiện; editor chạy P3 hoặc demo fallback trung thực)
+- [x] Gate đã bỏ, demo text trung tính
 
 ## Commit & Push
 - 1 commit: `TASK-004-FR(web): listening player, speaking recorder, python editor, ungated complete`

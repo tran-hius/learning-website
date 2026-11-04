@@ -37,10 +37,15 @@ export function SpeakingPractice({ setId, isDemo, modelAudioUrl, prompt }: Speak
   const [selfScore, setSelfScore] = useState<number | null>(null);
   const [savedLocally, setSavedLocally] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  // FE-3 (TASK-005): notice demo tách khỏi lỗi thật — banner honey trung tính
+  // (pattern `usedFallback` của ListeningPlayer), không dùng role="alert" đỏ.
+  const [demoNotice, setDemoNotice] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  // FE-4 (TASK-005): giữ AudioContext để close() trong cleanup, tránh rò rỉ.
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -86,6 +91,11 @@ export function SpeakingPractice({ setId, isDemo, modelAudioUrl, prompt }: Speak
     streamRef.current = null;
     analyserRef.current = null;
     recorderRef.current = null;
+    // FE-4: đóng AudioContext để giải phóng tài nguyên audio.
+    void audioCtxRef.current?.close().catch(() => {
+      /* close lỗi → bỏ qua, đã cleanup hết các thứ khác */
+    });
+    audioCtxRef.current = null;
   }
 
   useEffect(() => cleanupRecording, []);
@@ -102,6 +112,7 @@ export function SpeakingPractice({ setId, isDemo, modelAudioUrl, prompt }: Speak
       // Waveform: AudioContext + Analyser (tạo sau khi có stream).
       const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioCtx = new AudioCtx();
+      audioCtxRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
@@ -167,7 +178,7 @@ export function SpeakingPractice({ setId, isDemo, modelAudioUrl, prompt }: Speak
           similarityHint: "COMPARE_MANUALLY",
           selfScoreOptions: [1, 2, 3, 4, 5],
         });
-        setSubmitError("Chế độ demo — bản ghi chỉ nghe trên máy này, chưa gửi lên server.");
+        setDemoNotice("Chế độ demo — bản ghi chỉ nghe trên máy này, chưa gửi lên server.");
       } else {
         setResult(await submitSpeakingAttempt({ audio, modelAudioUrl, prompt }));
       }
@@ -260,6 +271,12 @@ export function SpeakingPractice({ setId, isDemo, modelAudioUrl, prompt }: Speak
         {submitError ? (
           <p role="alert" className="rounded-[12px] bg-coral-50 px-4 py-3 text-sm text-coral-600">
             {submitError}
+          </p>
+        ) : null}
+
+        {demoNotice ? (
+          <p className="rounded-[12px] border border-dashed border-honey-300 bg-honey-50 px-4 py-3 text-sm text-ink-700">
+            {demoNotice}
           </p>
         ) : null}
 

@@ -1,7 +1,7 @@
 /**
  * Practice endpoints — contract mục 4 (P1, P2) của docs/api-contract.md.
- * Backend CHƯA mount /practice (routes/index.ts ghi chú mount theo task sau)
- * → mọi call sẽ lỗi NETWORK/404; UI bắt lỗi và rơi về chấm local demo mode.
+ * Backend đã mount /practice (TASK-004 api) — API 200 ưu tiên; lỗi → UI
+ * bắt lỗi và rơi về chấm local demo mode (fallback trung thực).
  */
 import { apiFetch } from "./client";
 import type {

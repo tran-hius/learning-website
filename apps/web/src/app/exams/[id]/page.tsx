@@ -1,45 +1,42 @@
-import { Construction } from "lucide-react";
+import Link from "next/link";
+import { History, ListChecks } from "lucide-react";
 import { Container } from "@/components/layout/Container";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ExamRunner } from "@/components/exam/ExamRunner";
 
 /**
- * /exams/[id] — trang thi placeholder.
- * Khi E1–E4 chạy sẽ tạo session qua src/lib/api/exams.ts, đồng hồ vòng tròn + autosave.
+ * /exams/[id] — phòng thi (TASK-005, contract mục 5 E1–E4).
+ * `id` = examBankId. Flow thi chạy trong ExamRunner (client): tạo session,
+ * đếm ngược tuyệt đối theo expiresAt, autosave progress, nộp + kết quả.
  */
 export default async function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   return (
     <Container className="flex max-w-3xl flex-col gap-6 py-8 sm:py-10">
-      <header>
-        <Badge variant="coral" className="mb-2">
-          Thi thử · sắp ra mắt
-        </Badge>
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="coral">Thi thử</Badge>
+          <Badge variant="outline">
+            <ListChecks className="mr-1 inline size-3.5" aria-hidden /> Đề 20 câu · tự chấm
+          </Badge>
+        </div>
         <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-          Phòng thi đang được dọn dẹp 📝
+          Phòng thi — bình tĩnh và làm đều tay nha! 📝
         </h1>
-        <p className="mt-2 text-[15px] text-ink-700">
-          Đề thi có mã <code className="rounded bg-cream-deep px-1.5 py-0.5 font-mono text-sm">{id}</code> sẽ
-          sớm mở. Mỗi câu 1 card, có đồng hồ đếm giờ và tự lưu bài làm — đừng lo lỡ tay tắt tab!
+        <p className="text-[15px] text-ink-700">
+          Câu trả lời được lưu tự động liên tục — lỡ tắt tab cũng không mất bài làm.
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Luồng thi sẽ thế nào?</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-[15px] text-ink-700">
-          <p>• Bấm “Bắt đầu” → nhận đề 60% câu vừa, 20% dễ, 20% khó.</p>
-          <p>• Trả lời được lưu tự động liên tục (“Đã lưu ✓”).</p>
-          <p>• Nộp bài là biết điểm ngay + câu sai kèm giải thích chi tiết.</p>
-        </CardContent>
-      </Card>
+      <ExamRunner examBankId={id} />
 
-      <p className="flex items-center gap-2 rounded-[12px] bg-cream-deep p-4 text-sm text-ink-700">
-        <Construction className="size-4 shrink-0 text-honey-500" aria-hidden />
-        Trang này đang xây — dữ liệu thật sẽ lấy từ API khi backend sẵn sàng.
-      </p>
+      <Link
+        href={`/exams/${encodeURIComponent(id)}/history`}
+        className="inline-flex min-h-[44px] w-fit items-center gap-2 rounded-[12px] px-4 text-[15px] font-semibold text-teal-fresh-600 underline-offset-4 transition-colors duration-200 hover:underline"
+      >
+        <History className="size-4" aria-hidden /> Lịch sử các lượt thi
+      </Link>
     </Container>
   );
 }
