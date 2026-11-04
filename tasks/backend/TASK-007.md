@@ -45,7 +45,7 @@
 (điền nếu BLOCKED) — không BLOCKED.
 
 ## Ghi chú của reviewer
-(review cấp 1 — hotfix commit `TASK-007(shared,api): drop SKIPPED from MilestoneStatus, pomodoro quota via helper, honest race comment (review F-R2/F-R4)`, hash: _điền sau push_)
+(review cấp 1 — hotfix commit `TASK-007(shared,api): drop SKIPPED from MilestoneStatus, pomodoro quota via helper, honest race comment (review F-R2/F-R4)`, hash: `3ca3bb0`))
 
 - **F-R2 (shared):** bỏ `"SKIPPED"` khỏi `MilestoneStatus` — BE (`roadmap-logic.ts`) chỉ emit LOCKED|AVAILABLE|DONE. FE (`roadmaps/[slug]/page.tsx`) vẫn giữ key SKIPPED trong `STATUS_META` cục bộ (type widening an toàn, không đụng apps/web).
 - **F-R4 (api):** repository `recordPomodoroTransaction` giờ gọi helper pure `isPomodoroQuotaExceeded` thay vì inline `countToday > maxPerDay` → test unit cover đúng đường code thật.
