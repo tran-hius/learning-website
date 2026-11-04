@@ -91,6 +91,55 @@ function isEnglishBank(examBankId?: string): boolean {
   return typeof examBankId === "string" && /tieng-anh|tiếng anh|english|anh-van/i.test(examBankId);
 }
 
+/**
+ * A11y (TASK-007): focus trap + Escape-close cho modal thường (confirm nộp /
+ * tạm dừng thi). Overlay proctoring KHÔNG dùng hook này — Escape không được
+ * phép đóng để bỏ cảnh báo.
+ */
+function useFocusTrap(open: boolean, onClose: () => void) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const node = ref.current;
+    const prevFocus = document.activeElement as HTMLElement | null;
+    const focusables = () =>
+      node
+        ? Array.from(
+            node.querySelectorAll<HTMLElement>(
+              'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((el) => !el.hasAttribute("disabled"))
+        : [];
+    focusables()[0]?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key === "Tab") {
+        const list = focusables();
+        if (list.length === 0) return;
+        const first = list[0];
+        const last = list[list.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    node?.addEventListener("keydown", onKey);
+    return () => {
+      node?.removeEventListener("keydown", onKey);
+      prevFocus?.focus();
+    };
+  }, [open, onClose]);
+  return ref;
+}
+
 /** So giá trị demo (string / string[] / pairs) — mirror utils/scoring.ts. */
 function demoIsCorrect(type: QuestionType, answer: unknown, value: AnswerValue): boolean {
   if (type === "FILL_ANSWER" || type === "MCQ_SINGLE" || type === "LISTEN_MCQ") {
@@ -277,6 +326,7 @@ export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proc
         totalQuestions: DEMO_EXAM.questions.length,
         startedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + DEMO_EXAM.durationSec * 1000).toISOString(),
+        remainingSec: DEMO_EXAM.durationSec, // shared v1.1 — ExamSession bắt buộc
       });
       setQuestions(
         DEMO_EXAM.questions.map((q) => ({ id: q.id, type: q.type, stem: q.stem, options: q.options })),
@@ -403,6 +453,12 @@ export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proc
   const total = questions.length;
 
   const onExpire = useCallback(() => setExpired(true), []);
+
+  // A11y — focus trap + Escape cho 2 modal xác nhận (overlay proctoring KHÔNG Escape-close).
+  const closeConfirm = useCallback(() => setConfirmOpen(false), []);
+  const closePause = useCallback(() => setPauseOpen(false), []);
+  const confirmTrapRef = useFocusTrap(confirmOpen, closeConfirm);
+  const pauseTrapRef = useFocusTrap(pauseOpen, closePause);
 
   async function handleSubmit(violationCount = violations) {
     if (!session || submittingRef.current) return;
@@ -689,6 +745,7 @@ export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proc
         {/* Confirm trước khi nộp — báo câu chưa trả lời */}
         {confirmOpen ? (
           <div
+            ref={confirmTrapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Xác nhận nộp bài"
@@ -719,6 +776,7 @@ export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proc
         {/* D15: confirm "Tạm dừng thi" — tự nộp chủ động với violations hiện có */}
         {pauseOpen ? (
           <div
+            ref={pauseTrapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Tạm dừng thi"
@@ -742,7 +800,8 @@ export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proc
           </div>
         ) : null}
 
-        {/* D15: overlay cảnh báo khi thoát FS / chuyển tab */}
+        {/* D15: overlay cảnh báo khi thoát FS / chuyển tab — role=alertdialog,
+            KHÔNG có Escape-close (a11y TASK-007: không cho phép bỏ qua cảnh báo). */}
         {warnOpen ? (
           <div
             role="alertdialog"

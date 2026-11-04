@@ -1,8 +1,11 @@
 import { apiFetch } from "./client";
 import type {
   Enrollment,
+  EnrollmentListItem,
+  PlacementResult,
   RoadmapDetail,
   RoadmapListItem,
+  RoadmapProgress,
 } from "./types";
 
 /**
@@ -27,41 +30,23 @@ export function enrollRoadmap(roadmapId: string): Promise<{ enrollment: Enrollme
   });
 }
 
-/** R4 — Tiến độ lộ trình của mình (milestone mở theo dependencies).
- * Shape thật (roadmap.service.getMyProgress): có enrollment + milestones kèm title/order/status,
- * currentStep là MILESTONE ID (không phải number như shared) — dùng type cục bộ. */
-export interface RoadmapProgressReal {
-  enrollment: { id: string; roadmap: { id: string; slug: string; title: string }; startedAt: string };
-  percentCompleted: number;
-  currentStep: string | null;
-  milestones: Array<{
-    id: string;
-    title: string;
-    order: number;
-    status: "LOCKED" | "AVAILABLE" | "DONE" | "SKIPPED";
-  }>;
+/**
+ * TASK-007 — enrollments của user (GET /roadmaps/me): thay localStorage làm
+ * nguồn tìm enrollmentId khi vào R4. API lỗi → FE fallback localStorage (trung thực).
+ */
+export function getMyEnrollments(): Promise<EnrollmentListItem[]> {
+  return apiFetch("/roadmaps/me");
 }
 
-export function getMyRoadmapProgress(enrollmentId: string): Promise<RoadmapProgressReal> {
+/** R4 — Tiến độ lộ trình của mình (milestone mở theo dependencies).
+ * v1.1: shape thật đã đồng bộ vào shared `RoadmapProgress` (MilestoneStatus enum). */
+export function getMyRoadmapProgress(enrollmentId: string): Promise<RoadmapProgress> {
   return apiFetch(`/roadmaps/me/${encodeURIComponent(enrollmentId)}`);
 }
 
-/** R5 — Test đầu vào (alias POST /exams kind PLACEMENT_TEST).
- * Backend trả `{ session: {...}, recommendedRoadmap | null, confidence }` (roadmap.service). */
-export interface PlacementResultReal {
-  session: {
-    id: string;
-    durationSec: number;
-    totalQuestions: number;
-    startedAt: string;
-    expiresAt: string;
-    remainingSec: number;
-  };
-  recommendedRoadmap: { id: string; slug: string; title: string } | null;
-  confidence: number;
-}
-
-export function startPlacementTest(subjectSlug?: string): Promise<PlacementResultReal> {
+/** R5 — Test đầu vào (alias POST /progress/placement-test).
+ * v1.1: dùng shared `PlacementResult` (session + recommendedRoadmap + confidence). */
+export function startPlacementTest(subjectSlug?: string): Promise<PlacementResult> {
   return apiFetch("/progress/placement-test", {
     method: "POST",
     body: { kind: "PLACEMENT_TEST", subjectSlug },

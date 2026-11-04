@@ -36,12 +36,27 @@ function fmt(sec: number): string {
 export function CountdownTimer({ expiresAt, durationSec, onExpire }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(() => remainingSec(expiresAt));
   const expiredRef = useRef(false);
+  // A11y (TASK-007): aria-live chỉ announce khi đổi MỐC PHÚT hoặc vào ngưỡng
+  // urgent — không đọc to mỗi giây (screen reader spam).
+  const [announce, setAnnounce] = useState(() => fmt(remainingSec(expiresAt)));
+  const lastMinuteRef = useRef<number | null>(null);
+  const urgentRef = useRef(false);
 
   useEffect(() => {
     expiredRef.current = false;
+    lastMinuteRef.current = null;
+    urgentRef.current = false;
     const tick = () => {
       const r = remainingSec(expiresAt);
       setRemaining(r);
+      // Chỉ cập nhật nhãn announce tại mốc phút hoặc khi vừa vào ngưỡng urgent.
+      const minute = Math.ceil(r / 60);
+      const urgentNow = r > 0 && r / Math.max(1, durationSec) <= 0.2;
+      if (minute !== lastMinuteRef.current || (urgentNow && !urgentRef.current)) {
+        lastMinuteRef.current = minute;
+        urgentRef.current = urgentNow;
+        setAnnounce(r <= 0 ? "Hết giờ" : `Thời gian còn lại ${fmt(r)}`);
+      }
       if (r <= 0 && !expiredRef.current) {
         expiredRef.current = true;
         onExpire?.();
@@ -50,7 +65,7 @@ export function CountdownTimer({ expiresAt, durationSec, onExpire }: CountdownTi
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [expiresAt, onExpire]);
+  }, [expiresAt, onExpire, durationSec]);
 
   const total = Math.max(1, durationSec);
   const fraction = Math.min(1, remaining / total);
@@ -69,7 +84,7 @@ export function CountdownTimer({ expiresAt, durationSec, onExpire }: CountdownTi
       )}
       role="timer"
       aria-live="polite"
-      aria-label={`Thời gian còn lại ${fmt(remaining)}`}
+      aria-label={announce}
     >
       <svg viewBox="0 0 36 36" className="size-7 -rotate-90" aria-hidden>
         <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-ink-300)" strokeOpacity="0.4" strokeWidth="4" />
@@ -86,7 +101,7 @@ export function CountdownTimer({ expiresAt, durationSec, onExpire }: CountdownTi
         />
       </svg>
       <Timer className="size-4" aria-hidden />
-      <span className="font-mono tabular-nums">{out ? "Hết giờ" : fmt(remaining)}</span>
+      <span className="font-mono tabular-nums" aria-hidden>{out ? "Hết giờ" : fmt(remaining)}</span>
     </div>
   );
 }

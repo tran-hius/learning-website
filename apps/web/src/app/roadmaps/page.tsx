@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ExamRunner } from "@/components/exam/ExamRunner";
 import { getRoadmaps, startPlacementTest } from "@/lib/api/roadmaps";
 import { friendlyApiMessage } from "@/lib/api/client";
-import type { RoadmapListItem } from "@/lib/api/types";
-import type { PlacementResultReal } from "@/lib/api/roadmaps";
+import type { PlacementResult, RoadmapListItem } from "@/lib/api/types";
+import { PLACEMENT_RECOMMENDATIONS } from "@/lib/api/types";
 import { ROADMAPS } from "@/lib/subjects-data";
 
 /**
@@ -30,10 +30,13 @@ export default function RoadmapsPage() {
   // R5 placement flow
   const [placementStarting, setPlacementStarting] = useState(false);
   const [placementError, setPlacementError] = useState<string | null>(null);
-  const [placement, setPlacement] = useState<PlacementResultReal | null>(null);
-  const [placementDone, setPlacementDone] = useState<{ recommended: string | null; confidence: number } | null>(
-    null,
-  );
+  const [placement, setPlacement] = useState<PlacementResult | null>(null);
+  const [placementDone, setPlacementDone] = useState<{
+    slug: string;
+    title: string;
+    percent: number;
+    confidence: number;
+  } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -108,11 +111,20 @@ export default function RoadmapsPage() {
         <ExamRunner
           kind="PLACEMENT_TEST"
           onSubmitted={(result) => {
+            // F5 (TASK-007): gợi ý tính từ percent của LẦN VỪA NỘP (client-side,
+            // theo PLACEMENT_RECOMMENDATIONS trong shared) — không dùng gợi ý
+            // server từ lúc start (lần cũ). E4 hiện không trả recommendedRoadmap
+            // mới nên nếu sau này backend trả kèm kết quả thì ưu tiên server.
+            const rec =
+              [...PLACEMENT_RECOMMENDATIONS].find((r) => result.percent >= r.minPercent) ??
+              PLACEMENT_RECOMMENDATIONS[PLACEMENT_RECOMMENDATIONS.length - 1];
+            const known = items.find((r) => r.slug === rec.slug) ?? ROADMAPS.find((r) => r.slug === rec.slug);
             setPlacementDone({
-              recommended: placement.recommendedRoadmap?.title ?? null,
-              confidence: placement.confidence,
+              slug: rec.slug,
+              title: known?.title ?? rec.slug,
+              percent: result.percent,
+              confidence: rec.confidence,
             });
-            void result;
           }}
         />
         {placementDone ? (
@@ -120,17 +132,17 @@ export default function RoadmapsPage() {
             <CardHeader>
               <CardTitle>Kết quả gợi ý lộ trình</CardTitle>
               <CardDescription>
-                {placementDone.recommended
-                  ? `Dựa trên bài test, lộ trình ${placementDone.recommended} có vẻ vừa với bạn nhất (độ tin cậy ${Math.round(placementDone.confidence * 100)}%).`
-                  : "Chưa có lộ trình nào để gợi ý — thử lại sau nhé!"}
+                Bạn vừa đạt <strong className="font-semibold">{placementDone.percent}%</strong> — dựa trên điểm
+                này, lộ trình <strong className="font-semibold">{placementDone.title}</strong> có vẻ vừa với bạn
+                nhất (độ tin cậy {Math.round(placementDone.confidence * 100)}%).
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link
-                href="/roadmaps"
+                href={`/roadmaps/${encodeURIComponent(placementDone.slug)}`}
                 className="inline-flex min-h-[44px] items-center rounded-[12px] bg-teal-fresh-500 px-5 text-[15px] font-semibold text-white transition-colors hover:bg-teal-fresh-600"
               >
-                Xem lại các lộ trình
+                Xem lộ trình {placementDone.title}
               </Link>
             </CardContent>
           </Card>

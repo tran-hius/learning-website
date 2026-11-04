@@ -15,6 +15,21 @@ export const metadata: Metadata = {
   title: "SynapseBrain — Người bạn học cùng",
   description:
     "Học Toán, Tiếng Anh, Python cùng SynapseBrain — người bạn học dễ thương: bài học ngắn, lộ trình nghề nghiệp, thi thử và streak mỗi ngày.",
+  applicationName: "SynapseBrain",
+  openGraph: {
+    title: "SynapseBrain — Người bạn học cùng",
+    description:
+      "Học Toán, Tiếng Anh, Python cùng SynapseBrain: bài học ngắn, lộ trình nghề nghiệp, thi thử và streak mỗi ngày.",
+    siteName: "SynapseBrain",
+    type: "website",
+    locale: "vi_VN",
+  },
+  twitter: {
+    card: "summary",
+    title: "SynapseBrain — Người bạn học cùng",
+    description:
+      "Học Toán, Tiếng Anh, Python cùng SynapseBrain: bài học ngắn, lộ trình nghề nghiệp, thi thử và streak mỗi ngày.",
+  },
 };
 
 export default function RootLayout({

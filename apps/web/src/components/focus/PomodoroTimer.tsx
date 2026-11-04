@@ -3,23 +3,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Coffee, Play, Pause, RotateCcw, Timer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getMe } from "@/lib/api/auth";
 import { recordPomodoro } from "@/lib/api/progress";
 import { cn } from "@/lib/utils";
 
 /**
- * PomodoroTimer — D14 (TASK-006): 30 phút học / 5 phút nghỉ.
+ * PomodoroTimer — D14 (TASK-006) + F3/F6 (TASK-007):
  * - Đếm TUYỆT ĐỐI theo timestamp (deadline = epoch ms lưu localStorage) → refresh
  *   tab không làm trôi đồng hồ; quá hạn vẫn tự chuyển phase khi mở lại.
- * - Hoàn thành chuỗi FOCUS ≥25 phút → G6 POST /progress/pomodoro (+5 XP, tối đa
- *   8 chuỗi/ngày) → toast "Chuỗi tập trung hoàn thành! +5 XP 🍅".
- * - Demo fallback trung thực: API lỗi → vẫn chạy chu kỳ, toast ghi rõ KHÔNG cộng
- *   XP server; quota đếm theo thiết bị này (localStorage), không fake số server.
+ * - F3 TRUNG THỰC: counter chỉ tăng khi server trả `xpEarned` (dùng luôn
+ *   `sessionsToday` từ response — không tự bịa). 429/lỗi → giữ nguyên counter,
+ *   chỉ thông báo. Demo/ước lượng trên thiết bị hiển thị dấu "≈".
+ * - F6: localStorage key theo user (`synapsebrain.pomodoro.{userId|guest}`),
+ *   toast timer được clear khi unmount.
  */
 
 const FOCUS_SEC = 30 * 60;
 const BREAK_SEC = 5 * 60;
 const DAILY_QUOTA = 8;
-const STORE_KEY = "synapsebrain.pomodoro.v1";
+
+/** F6 — key theo user: có user → id, không (chưa load/lỗi) → guest. */
+function storeKey(userId: string): string {
+  return `synapsebrain.pomodoro.${userId}`;
+}
 
 type PhaseKind = "focus" | "break";
 
@@ -31,22 +37,25 @@ interface PersistedState {
   remainingOnPause: number;
   dayKey: string;
   sessionsToday: number;
+  /** true khi counter chỉ là ước lượng trên thiết bị (demo hoặc server chưa ghi). */
+  approx: boolean;
 }
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function loadState(): PersistedState {
+function loadState(key: string): PersistedState {
   const fallback: PersistedState = {
     phase: "focus",
     deadline: null,
     remainingOnPause: FOCUS_SEC * 1000,
     dayKey: todayKey(),
     sessionsToday: 0,
+    approx: false,
   };
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as PersistedState;
     if (parsed.dayKey !== todayKey()) {
@@ -79,9 +88,50 @@ export function PomodoroTimer({ isDemo = false, className }: PomodoroTimerProps)
   const [now, setNow] = useState(() => Date.now());
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** F6 — uid cho storage key: chưa load/lỗi → "guest". */
+  const [userId, setUserId] = useState<string | null>(null);
+  const stateRef = useRef<PersistedState | null>(null);
 
   useEffect(() => {
-    setState(loadState());
+    stateRef.current = state;
+  }, [state]);
+
+  // F6 — resolve user để tách key theo từng người (lỗi/401 → guest).
+  useEffect(() => {
+    let alive = true;
+    getMe()
+      .then((me) => {
+        if (alive) setUserId(me.user.id);
+      })
+      .catch(() => {
+        if (alive) setUserId("guest");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // F6 — load state theo key của user (sau khi biết uid); lưu mỗi lần đổi.
+  const key = storeKey(userId ?? "guest");
+  useEffect(() => {
+    setState(loadState(key));
+  }, [key]);
+
+  useEffect(() => {
+    if (state) {
+      try {
+        localStorage.setItem(key, JSON.stringify(state));
+      } catch {
+        // private mode — bỏ qua, timer vẫn chạy trong phiên.
+      }
+    }
+  }, [state, key]);
+
+  // F6 — clear toast timer khi unmount (không setState sau unmount).
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, []);
 
   const showToast = useCallback((t: NonNullable<Toast>) => {
@@ -96,44 +146,45 @@ export function PomodoroTimer({ isDemo = false, className }: PomodoroTimerProps)
     return () => clearInterval(id);
   }, []);
 
-  // Lưu state mỗi lần đổi.
-  useEffect(() => {
-    if (state) {
-      try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(state));
-      } catch {
-        // private mode — bỏ qua, timer vẫn chạy trong phiên.
-      }
-    }
-  }, [state]);
-
   const running = !!state?.deadline;
 
-  /** Gọi G6 khi xong 1 chuỗi FOCUS. */
+  /** Gọi G6 khi xong 1 chuỗi FOCUS. Trả về số chuỗi mới (F3: chỉ tăng khi server xác nhận). */
   const completeFocus = useCallback(
-    async (sessionsToday: number) => {
+    async (sessionsToday: number): Promise<number> => {
       if (isDemo) {
         showToast({
           text: "Chuỗi tập trung hoàn thành! (demo — không cộng XP server) 🍅",
           tone: "info",
         });
-        return;
+        // Demo: đếm ước lượng trên thiết bị này — hiển thị kèm "≈".
+        return sessionsToday + 1;
       }
       try {
         const res = await recordPomodoro({ minutes: 30, completedAt: new Date().toISOString() });
+        if (typeof res?.xpEarned !== "number") {
+          // Server trả thiếu xpEarned → KHÔNG tự tăng counter (F3).
+          showToast({
+            text: "Chuỗi hoàn thành nhưng server chưa xác nhận XP — chưa đếm chuỗi này nha.",
+            tone: "warn",
+          });
+          return sessionsToday;
+        }
         showToast({ text: `Chuỗi tập trung hoàn thành! +${res.xpEarned} XP 🍅`, tone: "good" });
+        // Dùng số server trả về (nguồn chân lý), fallback +1 khi thiếu trường.
+        return typeof res.sessionsToday === "number" ? res.sessionsToday : sessionsToday + 1;
       } catch (err) {
+        // F3: 429/lỗi → giữ nguyên counter, chỉ thông báo.
         const msg = err instanceof Error ? err.message : "";
         if (msg.includes("Pomodoro XP limit") || msg.includes("RATE_LIMITED")) {
           showToast({ text: "Hôm nay đủ 8 chuỗi rồi — nghỉ ngơi đi nha! 🌙", tone: "warn" });
         } else {
           showToast({
-            text: "Chuỗi hoàn thành nhưng server chưa ghi được XP — thử lại sau nha.",
+            text: "Chuỗi hoàn thành nhưng server chưa ghi được XP — chuỗi này chưa được đếm nha.",
             tone: "warn",
           });
         }
+        return sessionsToday;
       }
-      void sessionsToday;
     },
     [isDemo, showToast],
   );
@@ -150,14 +201,25 @@ export function PomodoroTimer({ isDemo = false, className }: PomodoroTimerProps)
 
     // Phase kết thúc → chuyển phase kế + thông báo thân thiện (không alert).
     if (state.phase === "focus") {
-      void completeFocus(state.sessionsToday);
-      const nextSessions = Math.min(DAILY_QUOTA, state.sessionsToday + 1);
-      showToast({ text: "Nghỉ 5 phút nhẹ nhàng nha ☕", tone: "info" });
+      const prev = state;
+      // Chuyển phase NGAY (đồng hồ không đứng) — counter cập nhật khi có kết quả G6.
       setState({
         ...state,
         phase: "break",
         deadline: Date.now() + BREAK_SEC * 1000,
-        sessionsToday: nextSessions,
+        approx: isDemo, // tăng ở bước dưới chỉ khi được xác nhận/demo
+      });
+      showToast({ text: "Nghỉ 5 phút nhẹ nhàng nha ☕", tone: "info" });
+      void completeFocus(prev.sessionsToday).then((nextSessions) => {
+        // Chỉ ghi khi chưa có tick khác ghi đè (so sánh với snapshot mới nhất).
+        const cur = stateRef.current;
+        if (cur && cur.phase === "break") {
+          setState({
+            ...cur,
+            sessionsToday: Math.min(DAILY_QUOTA, nextSessions),
+            approx: isDemo || nextSessions === prev.sessionsToday,
+          });
+        }
       });
     } else {
       showToast({ text: "Hết giờ nghỉ — học tiếp nha! 💪", tone: "info" });
@@ -236,16 +298,20 @@ export function PomodoroTimer({ isDemo = false, className }: PomodoroTimerProps)
           <span
             className="font-mono text-3xl font-bold tabular-nums text-ink-900"
             role="timer"
-            aria-live="polite"
-            aria-label={`Còn lại ${fmt(remainingMs)}`}
+            aria-label="Bộ đếm Pomodoro"
           >
             {fmt(remainingMs)}
           </span>
           <span className="text-xs text-ink-500">
             {quotaFull
               ? `Đủ ${DAILY_QUOTA}/${DAILY_QUOTA} chuỗi hôm nay — XP ngừng cộng, chu kỳ vẫn chạy nha 🌙`
-              : `Hôm nay: ${quota}/${DAILY_QUOTA} chuỗi (+5 XP/chuỗi)`}
+              : `${state?.approx ? "≈" : ""}Hôm nay: ${quota}/${DAILY_QUOTA} chuỗi (+5 XP/chuỗi)`}
           </span>
+          {state?.approx ? (
+            <span className="text-xs text-ink-500">
+              Số chuỗi ước lượng trên thiết bị này (server chưa xác nhận).
+            </span>
+          ) : null}
         </div>
       </div>
 

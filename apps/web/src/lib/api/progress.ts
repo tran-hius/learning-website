@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import type {
   Badge,
   BadgesResponse,
+  PomodoroResult,
   ProgressOverview,
   StreakDay,
   TimelineItem,
@@ -36,10 +37,11 @@ export function getBadges(): Promise<BadgesResponse> {
 
 export type { Badge };
 
-/** G6 — Ghi 1 chuỗi focus Pomodoro (D14: minutes ∈ [25..60], tối đa 8 chuỗi/ngày). */
+/** G6 — Ghi 1 chuỗi focus Pomodoro (D14: minutes ∈ [25..60], tối đa 8 chuỗi/ngày).
+ * v1.1: dùng shared `PomodoroResult` (xpEarned + sessionsToday). */
 export function recordPomodoro(input: {
   minutes: number;
   completedAt?: string;
-}): Promise<{ xpEarned: number; sessionsToday: number }> {
+}): Promise<PomodoroResult> {
   return apiFetch("/progress/pomodoro", { method: "POST", body: input });
 }

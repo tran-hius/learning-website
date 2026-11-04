@@ -17,10 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { enrollRoadmap, getMyRoadmapProgress, getRoadmapBySlug } from "@/lib/api/roadmaps";
+import {
+  enrollRoadmap,
+  getMyEnrollments,
+  getMyRoadmapProgress,
+  getRoadmapBySlug,
+} from "@/lib/api/roadmaps";
 import { friendlyApiMessage } from "@/lib/api/client";
-import type { RoadmapDetail } from "@/lib/api/types";
-import type { RoadmapProgressReal } from "@/lib/api/roadmaps";
+import type { RoadmapDetail, RoadmapProgress } from "@/lib/api/types";
 import { ROADMAPS } from "@/lib/subjects-data";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +32,14 @@ import { cn } from "@/lib/utils";
  * /roadmaps/[slug] — chi tiết lộ trình (TASK-006, R2–R4):
  * - R2 tree milestones (🔒 khoá / 🔵 mở / ✅ xong theo R4).
  * - R3 "Bắt đầu lộ trình" → POST enroll (idempotent) → lưu enrollmentId vào
- *   localStorage (backend chưa có endpoint "lộ trình của tôi" liệt kê enrollment —
- *   R4 cần enrollmentId, đây là giải pháp MVP trung thực, ghi báo cáo).
- * - R4 tiến độ: % hoàn thành + highlight milestone hiện tại.
+ *   localStorage làm fallback cache.
+ * - R4 tiến độ: tìm enrollment qua GET /roadmaps/me (TASK-007); API lỗi →
+ *   fallback localStorage (trung thực — ghi rõ trong code).
+ * - % hoàn thành + highlight milestone hiện tại.
  * API lỗi → demo fallback trung thực.
  */
 
+/** Fallback cache khi GET /roadmaps/me lỗi — không phải nguồn chân lý. */
 const enrollmentKey = (roadmapId: string) => `synapsebrain.enrollment.${roadmapId}`;
 
 const STATUS_META = {
@@ -53,12 +59,27 @@ export default function RoadmapDetailPage() {
   const [demo, setDemo] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [roadmap, setRoadmap] = useState<RoadmapDetail | null>(null);
-  const [progress, setProgress] = useState<RoadmapProgressReal | null>(null);
+  const [progress, setProgress] = useState<RoadmapProgress | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const loadProgress = useCallback(async (roadmapId: string) => {
+    // TASK-007: nguồn chính là GET /roadmaps/me (backend liệt kê enrollment).
+    try {
+      const list = await getMyEnrollments();
+      const match = list.find((e) => e.roadmapId === roadmapId);
+      if (match) {
+        const res = await getMyRoadmapProgress(match.id);
+        setProgress(res);
+        return;
+      }
+      // Đã đăng nhập nhưng chưa enroll lộ trình này → không có tiến độ.
+      setProgress(null);
+      return;
+    } catch {
+      // API lỗi (m mạng/chưa đăng nhập...) → fallback localStorage trung thực.
+    }
     try {
       const stored = localStorage.getItem(enrollmentKey(roadmapId));
       if (!stored) return;
