@@ -38,7 +38,7 @@
 (không có — không BLOCKED; xem ghi chú dev)
 
 ## Ghi chú của dev (TASK-005-FR)
-- Commit hash: (điền sau push).
+- Commit hash: `075ea93` (pushed lên main, sau `8cea0a1` của backend TASK-005).
 - **5 điều kiện reviewer TASK-004:** FE-1 `content.server.ts` chuyển `/lessons/by-slug/:slug` (D10, xóa comment stale); FE-2 ListeningPlayer speed buttons `min-h-[44px]` + bỏ `size="sm"` nút submit; FE-3 SpeakingPractice demo banner honey trung tính (tách `demoNotice` khỏi lỗi thật, không role="alert"); FE-4 `audioCtxRef` + `close()` trong cleanup + `<audio onError>` ("Không phát được audio, thử tải lại nhé"); FE-5 xóa stale comment `practice.ts` + tick DoD TASK-004-FR.md.
 - **File mới:** `components/exam/CountdownTimer.tsx` (đếm ngược TUYỆT ĐỐI theo `expiresAt` — tick từ Date.now, đổi teal→honey ≤20%→coral hết giờ); `components/exam/MatchPairsForm.tsx` (nút chọn từng cặp, KHÔNG dnd, value `{leftId, rightId}` theo BE-2/contract P1; phân cột theo seed `opt_l*`/`opt_r*`, fallback chia nửa); `components/exam/ExamQuestionCard.tsx` (bản nhẹ QuizCard cho exam — không hint, đủ 5 loại câu, media hình/audio); `components/exam/ExamRunner.tsx` (E1→E4: resume session, grid nhảy câu, autosave debounce 1.5s "Đã lưu ✓", confirm nộp báo câu trống, review perQuestion, demo fallback trung thực); `lib/demo/demo-exam.ts`; `lib/api/exam.server.ts` (E5 server + cookie).
 - **File sửa:** `lib/api/exams.ts` (E5 trả `{ items }` khớp exam.repository — không Paginated); `app/exams/[id]/page.tsx` (trang thi thật); `app/exams/[id]/history/page.tsx` (lịch sử thi E5, trạng thái trống trung thực).
