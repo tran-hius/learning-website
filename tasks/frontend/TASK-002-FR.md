@@ -35,7 +35,8 @@
 - **XP ở /me:** task ghi "XP, streak (từ /auth/me)" nhưng contract A7 chỉ trả `user` + `stats{currentStreak, longestStreak}` (không có XP), và backend hiện chưa có route `/progress/*` (G1). Theo quy tắc "không đắp số liệu fake", trang /me hiển thị streak thật + trạng thái trống rõ ràng cho XP ("sẽ hiển thị khi endpoint tiến độ G1 được bật"). Đề xuất: khi backend làm G1, FE ghép `getProgressOverview()` vào /me (đã có sẵn `lib/api/progress.ts`).
 
 ## Ghi chú của reviewer
-(điền sau review)
+- code-reviewer cấp 1: PASS_W_WARNINGS (2 🟠 logout requireAuth + OAuth link-by-email; 8 🟡)
+- final-reviewer cấp 2: APPROVED_WITH_CONDITIONS — pipeline tự xác minh 6/6 pass. Điều kiện bắt buộc TASK-003: (1) POST /auth/logout bỏ requireAuth (A6 🔓, best-effort thu hồi rt_v + luôn clear cookie) + LogoutButton xử lý 401 im lặng thay alert(); (2) clearCookie(oauth_state) nhánh thiếu code. Trình user chốt: ngữ nghĩa "any" A6, OAuth linking strategy (a) link-by-email vs (b) bảng Account. XP /me: hợp lệ — chờ G1 progress endpoints.
 - Dev thực thi xong — DONE_PRIVATE, ngày 05/11/2026:
   - Commit: `9d10d23` — `TASK-002-FR(web): auth ui + rebrand SynapseBrain + shared types import` (đã push lên main, fast-forward không conflict)
   - `pnpm --filter @learning/web lint` + `build` PASS (9 routes, /login /register /me dynamic)

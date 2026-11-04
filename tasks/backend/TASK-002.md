@@ -3,7 +3,7 @@
 - **Agent thực thi:** backend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/api/src/**`, `apps/api/prisma/**`, `packages/shared/src/**`, `apps/api/package.json`
 - **Task gốc từ kế hoạch:** Ngày 2 — Auth & User
-- **Trạng thái:** DONE_PRIVATE
+- **Trạng thái:** DONE (final-reviewer: APPROVED_WITH_CONDITIONS — 2 điều kiện bắt buộc đưa vào TASK-003: logout bỏ requireAuth + clearCookie oauth_state; backlog: rate limit, guard ADMIN self-ban, reuse detection, enum register)
 
 ## Điều kiện bắt buộc từ final-reviewer (phải làm trong task này)
 1. `apps/api/src/config/app.ts`: bỏ `.default()` cho `AUTH_SECRET`, `DATABASE_URL`, `REDIS_URL`; chỉ cho phép default khi `NODE_ENV !== "production"`; production thiếu biến hoặc AUTH_SECRET còn giá trị dev → throw ngay lúc startup.
