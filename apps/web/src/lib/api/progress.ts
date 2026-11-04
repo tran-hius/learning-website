@@ -35,3 +35,11 @@ export function getBadges(): Promise<BadgesResponse> {
 }
 
 export type { Badge };
+
+/** G6 — Ghi 1 chuỗi focus Pomodoro (D14: minutes ∈ [25..60], tối đa 8 chuỗi/ngày). */
+export function recordPomodoro(input: {
+  minutes: number;
+  completedAt?: string;
+}): Promise<{ xpEarned: number; sessionsToday: number }> {
+  return apiFetch("/progress/pomodoro", { method: "POST", body: input });
+}

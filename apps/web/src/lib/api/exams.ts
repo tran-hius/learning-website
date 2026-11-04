@@ -19,8 +19,25 @@ export function startExam(input: StartExamInput): Promise<{ session: ExamSession
   return apiFetch("/exams", { method: "POST", body: input });
 }
 
-/** E2 — Lấy đề (đã ẩn đáp án) */
-export function getExamQuestions(sessionId: string): Promise<{ items: ExamQuestionItem[] }> {
+/**
+ * E2 — Lấy đề (đã ẩn đáp án).
+ * v1.1 (TASK-006, D16): backend trả kèm `progress` (autosave E3) + `session.remainingSec`
+ * để FE khôi phục grid sau reload. Shape thật (exam.service.getSessionQuestions):
+ * `{ session: { id, remainingSec }, progress: [{questionId, value}], items: [...] }`.
+ * Type dùng bản mở rộng cục bộ — packages/shared chưa kịp cập nhật (ghi báo cáo).
+ */
+export interface ExamQuestionsResponse {
+  session?: { id: string; remainingSec: number };
+  progress?: Array<{ questionId: string; value: AnswerValue }>;
+  items: ExamQuestionItem[];
+}
+
+/** E4 mở rộng: violations số lần vi phạm proctoring (D15 — backend examSubmitSchema có, shared chưa). */
+export interface SubmitExamInputWithViolations extends SubmitExamInput {
+  violations?: number;
+}
+
+export function getExamQuestions(sessionId: string): Promise<ExamQuestionsResponse> {
   return apiFetch(`/exams/${encodeURIComponent(sessionId)}/questions`);
 }
 
@@ -35,8 +52,11 @@ export function saveExamProgress(
   });
 }
 
-/** E4 — Nộp bài + kết quả chấm */
-export function submitExam(sessionId: string, input: SubmitExamInput): Promise<ExamResult> {
+/** E4 — Nộp bài + kết quả chấm (violations: D15 proctoring — lưu session, không trừ điểm). */
+export function submitExam(
+  sessionId: string,
+  input: SubmitExamInputWithViolations,
+): Promise<ExamResult> {
   return apiFetch(`/exams/${encodeURIComponent(sessionId)}/submit`, {
     method: "POST",
     body: input,

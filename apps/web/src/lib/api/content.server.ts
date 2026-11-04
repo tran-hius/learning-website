@@ -115,6 +115,21 @@ export async function getChapterLessonsServer(
 }
 
 /**
+ * S4 (bản theo id) — GET /lessons/:lessonId. G2 weak-topics backend chỉ trả
+ * `recommendedLesson: { id, title }` (không có slug) → FE cần endpoint theo id
+ * để tạo link "Ôn lại" tới /lessons/{id} (trang /lessons/[slug] fallback theo id).
+ */
+export async function getLessonServerById(lessonId: string): Promise<LessonRow | null> {
+  try {
+    return await apiFetchServer<LessonRow>(`/lessons/${encodeURIComponent(lessonId)}`, {
+      headers: await cookieHeader(),
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * S4/D10 — GET /lessons/by-slug/:slug (contract mục 3.2, backend TASK-004 đã mount).
  * Trả null khi API lỗi → trang bài học rơi demo mode.
  */

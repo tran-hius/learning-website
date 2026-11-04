@@ -19,6 +19,24 @@ export function Sidebar() {
       </Link>
 
       <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
+        Hành trình
+      </p>
+      <nav aria-label="Tiến độ và lộ trình" className="mb-3 flex flex-col gap-0.5">
+        <Link
+          href="/progress"
+          className="flex min-h-[44px] items-center gap-2.5 rounded-[12px] px-3 text-[15px] text-ink-700 transition-colors duration-150 hover:bg-cream-deep hover:text-ink-900"
+        >
+          <span aria-hidden>📊</span> Tiến độ của tôi
+        </Link>
+        <Link
+          href="/roadmaps"
+          className="flex min-h-[44px] items-center gap-2.5 rounded-[12px] px-3 text-[15px] text-ink-700 transition-colors duration-150 hover:bg-cream-deep hover:text-ink-900"
+        >
+          <span aria-hidden>🛤️</span> Lộ trình nghề nghiệp
+        </Link>
+      </nav>
+
+      <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-300">
         Môn học
       </p>
       <nav aria-label="Danh sách môn học" className="flex flex-col gap-0.5">

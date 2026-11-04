@@ -9,7 +9,9 @@ import {
   Check,
   FlaskConical,
   Loader2,
+  MonitorX,
   Send,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "./CountdownTimer";
@@ -21,6 +23,7 @@ import { friendlyApiMessage, isApiError } from "@/lib/api/client";
 import { DEMO_EXAM } from "@/lib/demo/demo-exam";
 import type {
   AnswerValue,
+  ExamKind,
   ExamQuestionItem,
   ExamResult,
   ExamSession,
@@ -29,18 +32,37 @@ import type {
 import { cn } from "@/lib/utils";
 
 /**
- * Phòng thi — task TASK-005 (contract mục 5, D13):
- * - E1 POST /exams → session; E2 GET questions (ẩn đáp án); API lỗi → DEMO
- *   trung thực (banner honey, chấm local, không gửi server).
+ * Phòng thi — task TASK-005 + TASK-006 (contract mục 5, D13/D15/D16):
+ * - E1 POST /exams → session; E2 GET questions (ẩn đáp án, v1.1 trả `progress`
+ *   autosave → D16-FE: khôi phục grid + câu đã trả lời sau reload); API lỗi →
+ *   DEMO trung thực (banner honey, chấm local, không gửi server).
  * - Đếm ngược TUYỆT ĐỐI theo expiresAt (CountdownTimer — refresh không sai giờ).
  * - E3 autosave progress (debounce 1.5s, nhãn "Đã lưu ✓").
- * - E4 submit (confirm trước khi nộp) → ResultCelebration tái dùng (D8/D9)
- *   + review perQuestion (đúng/sai + giải thích).
+ * - E4 submit (confirm trước khi nộp, D15 kèm `violations`) → ResultCelebration
+ *   (D8/D9) + review perQuestion.
+ * - D15 proctoring (giả định task file: backend KHÔNG có cờ `proctored`, seed chỉ
+ *   có bank Toán) → áp dụng cho kind PLACEMENT_TEST + bank tiếng Anh (id/slug
+ *   khớp /tieng-anh|english|anh-van/): fullscreen + chặn copy/contextmenu +
+ *   fullscreenchange/visibilitychange → overlay 5s + đếm vi phạm, đủ 3 → tự nộp.
  * - Quá hạn: backend chặn (409 EXAM_STATE_CONFLICT) → FE khóa form + banner.
  */
 
 type Phase = "loading" | "ready" | "result";
 type SaveState = "idle" | "saving" | "saved" | "error";
+
+const VIOLATION_LIMIT = 3;
+const WARN_SECONDS = 5;
+
+export interface ExamRunnerProps {
+  /** examBankId (thi theo bank). Placement để trống — pool toàn cục. */
+  examBankId?: string;
+  /** Loại thi — mặc định PRACTICE_TEST (D15: placement luôn bật proctoring). */
+  kind?: ExamKind;
+  /** Ép bật/tắt proctoring (bỏ qua heuristic). */
+  proctored?: boolean;
+  /** Callback sau khi nộp thành công (dùng bởi placement — hiển thị lộ trình gợi ý). */
+  onSubmitted?: (result: ExamResult) => void;
+}
 
 type ExamQ = {
   id: string;
@@ -62,6 +84,11 @@ function isAnswered(value: AnswerValue | null): boolean {
     return true; // MATCH_PAIRS {leftId, rightId}[]
   }
   return false;
+}
+
+/** Heuristic D15 (giả định đã ghi báo cáo): bank nào là "tiếng Anh". */
+function isEnglishBank(examBankId?: string): boolean {
+  return typeof examBankId === "string" && /tieng-anh|tiếng anh|english|anh-van/i.test(examBankId);
 }
 
 /** So giá trị demo (string / string[] / pairs) — mirror utils/scoring.ts. */
@@ -117,7 +144,11 @@ function gradeDemoExam(answers: AnswerMap): ExamResult {
   };
 }
 
-export function ExamRunner({ examBankId }: { examBankId: string }) {
+export function ExamRunner({ examBankId, kind = "PRACTICE_TEST", proctored: proctoredProp, onSubmitted }: ExamRunnerProps) {
+  // D15: heuristic xác định đề bị giám sát — placement luôn bật, bank tiếng Anh bật.
+  const proctored =
+    proctoredProp ?? (kind === "PLACEMENT_TEST" || isEnglishBank(examBankId));
+
   const [phase, setPhase] = useState<Phase>("loading");
   const [session, setSession] = useState<ExamSession | null>(null);
   const [questions, setQuestions] = useState<ExamQ[]>([]);
@@ -134,11 +165,59 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
   const [result, setResult] = useState<ExamResult | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
 
+  // ── D15 proctoring state ────────────────────────────────────────────
+  const [armed, setArmed] = useState(!proctored); // đã bấm "Bắt đầu làm bài"
+  const [violations, setViolations] = useState(0);
+  const [warnOpen, setWarnOpen] = useState(false);
+  const [warnLeft, setWarnLeft] = useState(WARN_SECONDS);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [fsSupported, setFsSupported] = useState(true);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const violationsRef = useRef(0);
+  const warnOpenRef = useRef(false); // gộp các event cùng 1 "episode" rời màn hình
+  const sessionRef = useRef<ExamSession | null>(null);
+  const demoRef = useRef(false);
+  const expiredRef = useRef(false);
+  const submittingRef = useRef(false);
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answersRef = useRef(answers);
+  // Ref để effect fullscreenchange gọi được handleSubmit mới nhất.
+  const handleSubmitRef = useRef<((violations?: number) => Promise<void>) | null>(
+    null,
+  );
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+  useEffect(() => {
+    demoRef.current = demo;
+  }, [demo]);
+  useEffect(() => {
+    expiredRef.current = expired;
+  }, [expired]);
+  useEffect(() => {
+    warnOpenRef.current = warnOpen;
+  }, [warnOpen]);
+
+  // Autosave ngay lập tức (dùng khi vi phạm — không đợi debounce 1.5s).
+  const flushSave = useCallback(async () => {
+    const s = sessionRef.current;
+    if (!s || demoRef.current || expiredRef.current) return;
+    const entries = Object.entries(answersRef.current)
+      .filter(([, v]) => isAnswered(v))
+      .map(([questionId, v]) => ({ questionId, value: v as AnswerValue }));
+    if (entries.length === 0) return;
+    try {
+      await saveExamProgress(s.id, entries);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  }, []);
 
   const init = useCallback(async () => {
     setPhase("loading");
@@ -152,12 +231,38 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
     setAnswers({});
     setCurrent(0);
     setSaveState("idle");
+    setArmed(!proctored);
+    setViolations(0);
+    violationsRef.current = 0;
+    setWarnOpen(false);
+    setAutoSubmitted(false);
+    setPauseOpen(false);
     try {
       // E1 — resume: còn session IN_PROGRESS backend trả lại session cũ.
-      const { session: s } = await startExam({ examBankId, kind: "PRACTICE_TEST" });
-      const { items } = await getExamQuestions(s.id);
+      const { session: s } = await startExam({
+        ...(examBankId ? { examBankId } : {}),
+        kind,
+      });
+      // E2 v1.1 (D16): progress autosave → khôi phục câu đã trả lời sau reload.
+      const res = await getExamQuestions(s.id);
       setSession(s);
-      setQuestions(items.map((it) => ({ id: it.questionId, type: it.type, stem: it.stem, options: it.options, media: it.media })));
+      setQuestions(
+        res.items.map((it) => ({
+          id: it.questionId,
+          type: it.type,
+          stem: it.stem,
+          options: it.options,
+          media: it.media,
+        })),
+      );
+      if (res.progress && res.progress.length > 0) {
+        const restored: AnswerMap = {};
+        for (const p of res.progress) restored[p.questionId] = (p.value ?? null) as AnswerValue;
+        setAnswers(restored);
+        // Nhảy tới câu đầu tiên CHƯA trả lời để tiếp tục mạch thi.
+        const firstUnanswered = res.items.findIndex((it) => !isAnswered(restored[it.questionId] ?? null));
+        setCurrent(firstUnanswered === -1 ? 0 : firstUnanswered);
+      }
       setPhase("ready");
     } catch (err) {
       // D13: fallback demo trung thực — chấm local, không gửi server.
@@ -178,7 +283,7 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
       );
       setPhase("ready");
     }
-  }, [examBankId]);
+  }, [examBankId, kind, proctored]);
 
   useEffect(() => {
     void init();
@@ -207,6 +312,90 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
     };
   }, [answers, phase, demo, session, expired]);
 
+  // ── D15: fullscreen API khả năng + listeners ────────────────────────
+  useEffect(() => {
+    setFsSupported(
+      typeof document !== "undefined" &&
+        "fullscreenEnabled" in document &&
+        document.fullscreenEnabled === true,
+    );
+  }, []);
+
+  /** Đăng ký 1 lần vi phạm (gộp nhiều event cùng lúc — 1 episode đếm 1). */
+  const registerViolation = useCallback(() => {
+    if (!proctored || !armed) return;
+    if (phase !== "ready" || expiredRef.current || submittingRef.current) return;
+    if (warnOpenRef.current) return; // đang trong 1 episode → không đếm kép
+    violationsRef.current += 1;
+    setViolations(violationsRef.current);
+    setWarnOpen(true);
+    setWarnLeft(WARN_SECONDS);
+    void flushSave(); // vi phạm đồng thời autosave (task D15)
+    if (violationsRef.current >= VIOLATION_LIMIT) {
+      // Đủ 3 lần → tự nộp bài kèm violations.
+      setWarnOpen(false);
+      setAutoSubmitted(true);
+      void handleSubmitRef.current?.(violationsRef.current);
+    }
+  }, [proctored, armed, phase, flushSave]);
+
+  // Overlay cảnh báo đếm ngược 5s — quay lại màn hình là tự tắt.
+  useEffect(() => {
+    if (!warnOpen) return;
+    const id = setInterval(() => setWarnLeft((n) => Math.max(0, n - 1)), 1000);
+    return () => clearInterval(id);
+  }, [warnOpen]);
+
+  const dismissWarn = useCallback(() => {
+    setWarnOpen(false);
+    setWarnLeft(WARN_SECONDS);
+  }, []);
+
+  useEffect(() => {
+    if (!proctored || !armed || phase !== "ready") return;
+    const onFsChange = () => {
+      if (document.fullscreenElement) {
+        if (warnOpenRef.current) dismissWarn(); // đã quay lại FS → tắt cảnh báo
+      } else {
+        registerViolation(); // thoát FS → vi phạm
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        registerViolation(); // chuyển tab → vi phạm
+      } else if (warnOpenRef.current && !fsSupported) {
+        dismissWarn(); // chế độ degrade (không FS) — quay lại tab là tắt
+      }
+    };
+    const blockForDe = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const inField = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+      if (inField) return; // không chặn thao tác trong ô điền
+      e.preventDefault();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "x" || e.key === "C" || e.key === "X")) {
+        const t = e.target as HTMLElement | null;
+        if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") return;
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("contextmenu", blockForDe);
+    document.addEventListener("copy", blockForDe);
+    document.addEventListener("cut", blockForDe);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("contextmenu", blockForDe);
+      document.removeEventListener("copy", blockForDe);
+      document.removeEventListener("cut", blockForDe);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [proctored, armed, phase, registerViolation, dismissWarn, fsSupported]);
+
   const answeredCount = useMemo(
     () => questions.filter((q) => isAnswered(answers[q.id] ?? null)).length,
     [questions, answers],
@@ -215,10 +404,12 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
 
   const onExpire = useCallback(() => setExpired(true), []);
 
-  async function handleSubmit() {
-    if (!session) return;
+  async function handleSubmit(violationCount = violations) {
+    if (!session || submittingRef.current) return;
     setConfirmOpen(false);
+    setPauseOpen(false);
     setSubmitting(true);
+    submittingRef.current = true;
     setError(null);
     try {
       if (demo) {
@@ -230,17 +421,26 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
           answers: Object.entries(answers)
             .filter(([, v]) => isAnswered(v))
             .map(([questionId, v]) => ({ questionId, value: v as AnswerValue })),
+          violations: violationCount,
         });
         setResult(res);
+        onSubmitted?.(res);
       }
+      // Rời fullscreen khi thoát phòng thi (best-effort).
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
       setPhase("result");
       setShowCelebration(true);
     } catch (err) {
       setError(friendlyApiMessage(err));
+      setAutoSubmitted(false);
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
 
   function retry() {
     setShowCelebration(false);
@@ -250,6 +450,14 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
   function review() {
     setShowCelebration(false);
     document.getElementById("exam-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /** Bắt đầu làm bài (D15): fullscreen cần user gesture → gọi tại đây. */
+  function beginExam() {
+    if (proctored && fsSupported && containerRef.current) {
+      void containerRef.current.requestFullscreen().catch(() => undefined);
+    }
+    setArmed(true);
   }
 
   if (phase === "loading") {
@@ -263,10 +471,68 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
 
   const q = questions[current];
 
+  // ── D15: cổng "Bắt đầu làm bài" trước khi vào đề (fullscreen cần gesture) ──
+  if (phase === "ready" && proctored && !armed) {
+    return (
+      <div ref={containerRef} className="flex flex-col gap-4">
+        <div className="rounded-[16px] border border-ink-300/30 bg-paper p-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 size-6 shrink-0 text-honey-500" aria-hidden />
+            <div className="flex flex-col gap-2 text-[15px] text-ink-700">
+              <h2 className="text-lg font-bold text-ink-900">Phòng thi có giám sát nhẹ nha 🛡️</h2>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Bài thi sẽ mở <strong className="font-semibold">toàn màn hình</strong> để bạn tập trung.</li>
+                <li>Thoát toàn màn hình hoặc chuyển tab <strong className="font-semibold">3 lần</strong> → bài được nộp tự động (không trừ điểm, nhưng sẽ ghi lại cho bạn biết).</li>
+                <li>Chuột phải / copy trên đề bị khoá — điền đáp án bình thường nha.</li>
+                {!fsSupported ? (
+                  <li className="text-coral-600">
+                    Trình duyệt này không hỗ trợ toàn màn hình (vd iOS Safari) — bài thi vẫn theo dõi
+                    việc chuyển tab như bình thường nhé.
+                  </li>
+                ) : null}
+              </ul>
+              <Button size="lg" className="mt-2 w-fit" onClick={beginExam}>
+                <Check aria-hidden /> Bắt đầu làm bài
+              </Button>
+            </div>
+          </div>
+        </div>
+        {demoNotice ? (
+          <p className="flex items-start gap-2 rounded-[12px] border border-dashed border-honey-300 bg-honey-50 px-4 py-3 text-sm text-ink-700">
+            <FlaskConical className="mt-0.5 size-4 shrink-0 text-honey-500" aria-hidden />
+            <span>
+              <strong className="font-semibold">Chế độ demo</strong> — {demoNotice}
+              {needLogin ? (
+                <>
+                  {" "}
+                  Hoặc{" "}
+                  <Link href="/login" className="font-semibold text-teal-fresh-600 underline-offset-4 hover:underline">
+                    đăng nhập
+                  </Link>{" "}
+                  để thi thật nha!
+                </>
+              ) : null}
+            </span>
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   if (phase === "ready" && q) {
     const durationSec = session?.durationSec ?? DEMO_EXAM.durationSec;
     return (
-      <div className="flex flex-col gap-5">
+      <div
+        ref={containerRef}
+        onContextMenu={
+          proctored && armed ? (e) => e.preventDefault() : undefined
+        }
+        className={cn(
+          "flex flex-col gap-5",
+          // D15: ẩn selection trên đề, trừ ô input/textarea (vẫn paste/điền bình thường).
+          proctored && armed && "select-none [&_input]:select-text [&_textarea]:select-text",
+        )}
+      >
         {demoNotice ? (
           <p className="flex items-start gap-2 rounded-[12px] border border-dashed border-honey-300 bg-honey-50 px-4 py-3 text-sm text-ink-700 animate-pop-in">
             <FlaskConical className="mt-0.5 size-4 shrink-0 text-honey-500" aria-hidden />
@@ -297,27 +563,40 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
             <span className="text-sm font-medium text-ink-700">
               Đã trả lời {answeredCount}/{total} câu
             </span>
+            {proctored && armed && violations > 0 ? (
+              <span className="flex items-center gap-1 rounded-full bg-coral-50 px-3 py-1 text-sm font-semibold text-coral-600">
+                <ShieldAlert className="size-4" aria-hidden />
+                Rời màn hình {violations}/{VIOLATION_LIMIT} lần
+              </span>
+            ) : null}
           </div>
-          <span
-            className={cn(
-              "text-sm",
-              saveState === "saved" && "text-mint-600",
-              saveState === "saving" && "text-ink-500",
-              saveState === "error" && "text-coral-600",
-              (saveState === "idle" || demo) && "text-ink-500",
-            )}
-            aria-live="polite"
-          >
-            {demo
-              ? "Demo — không lưu server"
-              : saveState === "saving"
-                ? "Đang lưu…"
-                : saveState === "saved"
-                  ? "Đã lưu ✓"
-                  : saveState === "error"
-                    ? "Chưa lưu được — thử lại nhé"
-                    : "Tự động lưu khi bạn trả lời"}
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "text-sm",
+                saveState === "saved" && "text-mint-600",
+                saveState === "saving" && "text-ink-500",
+                saveState === "error" && "text-coral-600",
+                (saveState === "idle" || demo) && "text-ink-500",
+              )}
+              aria-live="polite"
+            >
+              {demo
+                ? "Demo — không lưu server"
+                : saveState === "saving"
+                  ? "Đang lưu…"
+                  : saveState === "saved"
+                    ? "Đã lưu ✓"
+                    : saveState === "error"
+                      ? "Chưa lưu được — thử lại nhé"
+                      : "Tự động lưu khi bạn trả lời"}
+            </span>
+            {proctored && armed ? (
+              <Button variant="outline" size="sm" onClick={() => setPauseOpen(true)} disabled={submitting || expired}>
+                Tạm dừng thi
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {expired ? (
@@ -327,6 +606,13 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
             <Button variant="outline" size="sm" onClick={retry} className="ml-auto">
               Làm lại
             </Button>
+          </p>
+        ) : null}
+
+        {proctored && armed && !fsSupported ? (
+          <p className="flex items-center gap-2 rounded-[12px] bg-cream-deep px-4 py-3 text-sm text-ink-700">
+            <MonitorX className="size-4 shrink-0" aria-hidden />
+            Trình duyệt không hỗ trợ toàn màn hình — bài thi vẫn được theo dõi khi bạn chuyển tab nhé.
           </p>
         ) : null}
 
@@ -419,7 +705,7 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
                 <p className="mt-2 text-[15px] text-ink-700">Bạn đã trả lời đủ {total} câu — nộp luôn nhé!</p>
               )}
               <div className="mt-4 flex items-center justify-center gap-2">
-                <Button variant="coral" onClick={handleSubmit}>
+                <Button variant="coral" onClick={() => void handleSubmit()}>
                   <Send aria-hidden /> Nộp bài
                 </Button>
                 <Button variant="outline" onClick={() => setConfirmOpen(false)}>
@@ -427,6 +713,52 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
                 </Button>
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {/* D15: confirm "Tạm dừng thi" — tự nộp chủ động với violations hiện có */}
+        {pauseOpen ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tạm dừng thi"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/30 p-4 backdrop-blur-[2px] animate-fade-in"
+          >
+            <div className="w-full max-w-sm rounded-[16px] bg-paper p-6 text-center shadow-[0_8px_32px_rgba(0,0,0,0.08)] animate-pop-in">
+              <h2 className="text-lg font-bold text-ink-900">Tạm dừng thi?</h2>
+              <p className="mt-2 text-[15px] text-ink-700">
+                Bấm tiếp tục là bài sẽ được <strong className="font-semibold">nộp luôn</strong> với{" "}
+                {violations} lần rời màn hình — không mất bài làm nhưng không làm tiếp được nha.
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <Button variant="coral" onClick={() => void handleSubmit()}>
+                  <Send aria-hidden /> Nộp bài & kết thúc
+                </Button>
+                <Button variant="outline" onClick={() => setPauseOpen(false)}>
+                  Làm tiếp
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* D15: overlay cảnh báo khi thoát FS / chuyển tab */}
+        {warnOpen ? (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Cảnh báo rời màn hình thi"
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-ink-900/90 p-6 text-center text-white animate-fade-in"
+          >
+            <ShieldAlert className="size-10 text-honey-400" aria-hidden />
+            <h2 className="text-xl font-bold">Bạn vừa rời khỏi màn hình thi!</h2>
+            <p className="max-w-md text-[15px] text-white/85">
+              Quay lại bài thi trong <strong className="font-semibold text-honey-300">{warnLeft}s</strong> nha.
+              Vi phạm lần {violations}/{VIOLATION_LIMIT} — đủ 3 lần bài sẽ được nộp tự động.
+            </p>
+            <Button variant="honey" onClick={dismissWarn}>
+              Tôi đã quay lại rồi
+            </Button>
           </div>
         ) : null}
       </div>
@@ -437,6 +769,19 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
   if (phase === "result" && result) {
     return (
       <div className="flex flex-col gap-5">
+        {autoSubmitted ? (
+          <p role="alert" className="flex items-center gap-2 rounded-[12px] bg-coral-50 px-4 py-3 text-sm font-medium text-coral-600">
+            <ShieldAlert className="size-4 shrink-0" aria-hidden />
+            Bài được nộp tự động sau 3 lần rời màn hình.
+          </p>
+        ) : null}
+        {!demo && violations > 0 ? (
+          <p className="rounded-[12px] bg-cream-deep px-4 py-3 text-sm text-ink-700">
+            Số lần rời màn hình bị ghi nhận: <strong className="font-semibold">{violations}</strong> (thông tin
+            cho bạn và admin — không ảnh hưởng điểm ở bản này).
+          </p>
+        ) : null}
+
         <section id="exam-review" aria-label="Xem lại bài làm" className="flex flex-col gap-4 scroll-mt-24">
           <h2 className="text-xl font-bold text-ink-900">Xem lại bài làm</h2>
           {result.perQuestion.map((p, i) => {
@@ -465,12 +810,14 @@ export function ExamRunner({ examBankId }: { examBankId: string }) {
           <Button onClick={retry}>
             <ArrowLeft aria-hidden /> Về đầu trang thi
           </Button>
-          <Link
-            href={`/exams/${encodeURIComponent(examBankId)}/history`}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-[12px] px-4 text-[15px] font-semibold text-teal-fresh-600 underline-offset-4 transition-colors duration-200 hover:underline"
-          >
-            Xem lịch sử thi
-          </Link>
+          {examBankId ? (
+            <Link
+              href={`/exams/${encodeURIComponent(examBankId)}/history`}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-[12px] px-4 text-[15px] font-semibold text-teal-fresh-600 underline-offset-4 transition-colors duration-200 hover:underline"
+            >
+              Xem lịch sử thi
+            </Link>
+          ) : null}
         </div>
 
         {demo ? (

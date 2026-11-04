@@ -6,7 +6,8 @@ import { PracticeSection } from "@/components/lesson/PracticeSection";
 import { ListeningPlayer, type ListeningFallback } from "@/components/audio/ListeningPlayer";
 import { SpeakingPractice } from "@/components/speaking/SpeakingPractice";
 import { PythonEditor } from "@/components/python/PythonEditor";
-import { getLessonServer } from "@/lib/api/content.server";
+import { getLessonServer, getLessonServerById } from "@/lib/api/content.server";
+import { PomodoroTimer } from "@/components/focus/PomodoroTimer";
 import { findDemoLesson } from "@/lib/demo/demo-lesson";
 import { MarkdownContent, extractHeadings } from "@/lib/markdown";
 import type { PracticeMode, QuestionPublic } from "@/lib/api/types";
@@ -75,8 +76,9 @@ function demoToView(slug: string): LessonView | null {
 export default async function LessonPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // S4/D10 — GET /lessons/by-slug/:slug (backend TASK-004 đã mount).
-  const remote = await getLessonServer(slug);
+  // S4/D10 — GET /lessons/by-slug/:slug; nếu không có → thử S4 theo id (G2
+  // weak-topics chỉ trả recommendedLesson.id nên link "Ôn lại" dùng /lessons/{id}).
+  const remote = (await getLessonServer(slug)) ?? (await getLessonServerById(slug));
 
   const view: LessonView | null = remote
     ? {
@@ -211,12 +213,14 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
           })}
         </article>
 
-        {/* Sidebar mục lục sticky — desktop */}
+        {/* Sidebar mục lục sticky — desktop + Pomodoro (D14) */}
         <aside className="hidden lg:block">
-          <nav
-            aria-label="Mục lục bài học"
-            className="sticky top-24 flex flex-col gap-2 rounded-[16px] border border-ink-300/30 bg-paper p-4 shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
-          >
+          <div className="sticky top-24 flex flex-col gap-4">
+            <PomodoroTimer />
+            <nav
+              aria-label="Mục lục bài học"
+              className="flex flex-col gap-2 rounded-[16px] border border-ink-300/30 bg-paper p-4 shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
+            >
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Mục lục</p>
             {toc.map((h) => (
               <a
@@ -237,7 +241,8 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
             >
               Thực hành ngay
             </a>
-          </nav>
+            </nav>
+          </div>
         </aside>
       </div>
     </Container>
