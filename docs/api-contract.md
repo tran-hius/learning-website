@@ -166,6 +166,7 @@ QuestionItem (câu hỏi trắc nghiệm) [practiceSet_id | examBank] {
 | R3 | POST | `/roadmaps/:id/enroll` | STUDENT | Bắt đầu lộ trình → `{ enrollment: { id, startedAt } }` |
 | R4 | GET | `/roadmaps/me/:enrollmentId` | STUDENT | Tiến độ `{ percentCompleted, currentStep, milestones: [{ id, status: LOCKED\|AVAILABLE\|DONE\|SKIPPED }] }` (milestone mở khi xong dependencies) |
 | R5 | POST | `/progress/placement-test` | STUDENT | Alias `POST /exams` với `kind: "PLACEMENT_TEST"` → trả đề test đầu vào → gợi lộ trình `{ recommendedRoadmap: { id, slug, title }, confidence: number }` |
+| R6 | GET | `/roadmaps/me` | STUDENT | Danh sách enrollment của user `{ items: [{ id, roadmapId, startedAt, roadmap: { id, slug, title, icon } }] }` — **v1.1 thêm** (thay localStorage FE) |
 
 ---
 
@@ -231,3 +232,4 @@ src/app/api/...           ← QUYỀN 70%(TF) — Route Handlers thin controller
 | D14 | **Pomodoro 30 phút học / 5 phút nghỉ**, XP +5/chuỗi focus ≥25 phút, endpoint G6 | 05/11/2026 | |
 | D15 | **Proctoring thi tiếng Anh:** vào fullscreen khi bắt đầu đề, chặn contextmenu + menu dịch; thoát fullscreen/chuyển tab → overlay cảnh báo + đếm vi phạm; đủ 3 lần → tự nộp bài. Vi phạm ghi vào submit (E4 `violations`), không trừ điểm MVP | 05/11/2026 | |
 | D16 | E2 trả `progress` khôi phục grid sau reload; E4 submit merge (ghi đè) autosave thay vì xóa sạch | 05/11/2026 | |
+| D17 | **v1.1: contract types đồng bộ vào packages/shared** (PlacementResult, MilestoneStatus LOCKED\|AVAILABLE\|DONE, PomodoroResult + constants, ExamQuestionsResponse, WeakTopicItem, StreakDay) — nguồn sự thật duy nhất cho FE+BE | 05/11/2026 | |
