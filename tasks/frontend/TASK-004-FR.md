@@ -3,7 +3,7 @@
 - **Agent thực thi:** frontend-developer
 - **Phạm vi đường dẫn cho phép:** `apps/web/src/**`, `apps/web/package.json`
 - **Task gốc từ kế hoạch:** Ngày 4 — giao diện thực hành đặc thù
-- **Trạng thái:** DONE_PRIVATE (commit `539d693` — chờ reviewer)
+- **Trạng thái:** DONE — final-reviewer: APPROVED_WITH_CONDITIONS (điều kiện chuyển TASK-005-FR: by-slug D10, touch target, AudioContext close, onError audio) (commit `539d693` — chờ reviewer)
 
 ## Điều kiện bắt buộc từ final-reviewer TASK-003 (làm TRONG task này)
 1. **Bỏ gate percent≥70** cho nút "Hoàn thành bài" (D9) — nút luôn hiện; celebration vẫn phân biệt ≥70/<70.
