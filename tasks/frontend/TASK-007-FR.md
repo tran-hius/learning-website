@@ -37,4 +37,4 @@
 (điền nếu BLOCKED)
 
 ## Ghi chú của reviewer
-(điền sau review)
+- F-R1 hotfix: `getMyEnrollments()` trả `{ items: EnrollmentListItem[] }` (khớp pattern `getRoadmaps`); `app/roadmaps/[slug]/page.tsx` dùng `list.items.find(...)`. Lint + build pass. Hotfix commit: `1ddab52` (đã push origin/main).
