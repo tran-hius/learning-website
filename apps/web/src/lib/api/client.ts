@@ -52,7 +52,10 @@ export function friendlyApiMessage(err: unknown): string {
 // biến env với next.config.mjs) để build URL tuyệt đối.
 
 export function serverApiBase(): string {
-  return process.env.API_PROXY_TARGET ?? "http://localhost:4000";
+  const raw = process.env.API_PROXY_TARGET ?? "http://localhost:4000";
+  // API_PROXY_TARGET là origin của apps/api (rewrite giữ nguyên /api/v1);
+  // server-side caller truyền path không có prefix → nối /api/v1 một lần duy nhất.
+  return raw.endsWith("/api/v1") ? raw : `${raw.replace(/\/$/, "")}/api/v1`;
 }
 
 // ── Fetch wrapper ────────────────────────────────────────────────────
